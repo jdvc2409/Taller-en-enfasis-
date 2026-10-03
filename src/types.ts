@@ -117,6 +117,8 @@ export interface WorkOrder {
   operations: WOOperation[];
   materials: WOMaterial[];
   rate: number;
+  /** Materiales, repuestos y otros gastos (USD). */
+  otherCost?: number;
   report: string;
   closeDate: string | null;
   closeHours: number | null;

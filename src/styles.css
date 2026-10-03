@@ -1241,3 +1241,46 @@ svg text.halo {
     border: 1px solid #999;
   }
 }
+.print-only {
+  display: none;
+}
+@media print {
+  .print-only {
+    display: block;
+  }
+  .insp-form .panel,
+  .insp-form .kpis {
+    border: 1px solid #555;
+    border-radius: 0;
+  }
+  .insp-form .panel-h {
+    background: #e9edef;
+    border-bottom: 1px solid #555;
+    padding: 6px 10px;
+  }
+  .insp-form table.t th,
+  .insp-form table.t td {
+    border: 1px solid #777;
+    padding: 4px 6px;
+  }
+  .insp-form input,
+  .insp-form select,
+  .insp-form textarea {
+    border: 0;
+    border-bottom: 1px solid #777;
+    border-radius: 0;
+    background: transparent;
+    color: #000;
+  }
+  .insp-zone {
+    break-before: page;
+  }
+  .insp-form .grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}

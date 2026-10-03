@@ -69,7 +69,9 @@ if (ok) {
   const n = await inputs.count();
   for (let i = 0; i < n; i++) await inputs.nth(i).fill('0');
   await page.locator('input[data-l="AP-02"]').fill('120');
-  await page.getByRole('button', { name: 'Guardar inspección' }).click();
+  await page.getByPlaceholder('INSP-01').fill('INSP-PRUEBA');
+  await page.locator('input[type=date]').first().fill('2026-10-20');
+  await page.getByRole('button', { name: 'Guardar inspección' }).first().click();
   await page.waitForTimeout(500);
   await go(page, '#/punto/631-01%7CAP-02');
   const h = await page.locator('h1').innerText();

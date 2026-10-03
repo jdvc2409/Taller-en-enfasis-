@@ -20,14 +20,14 @@ export const nextState = (s: WOState): WOState | null => {
 
 export const ISO = {
   failureMode: ['STD — Deficiencia estructural', 'BRD — Avería grave (rotura)'],
-  mechanism: ['2.6 Fatiga', '2.5 Rotura'],
+  mechanism: ['2.6 Fatiga', '2.5 Rotura (sobrecarga)'],
   cause: [
     '3.4 Desgaste y deterioro esperado',
     '3.3 Error de mantenimiento (reparación previa deficiente), presunta: confirmar con análisis de causa raíz',
     '1.1 Capacidad inadecuada (diseño), presunta: confirmar con análisis de causa raíz',
     '3.1 Operación fuera de diseño (sobrecarga), presunta: confirmar con análisis de causa raíz',
   ],
-  detection: ['Inspección periódica (visual / END)'],
+  detection: ['3 Inspección (visual / END)'],
   activity: ['2 Reparación', '11 Combinación (reparación + modificación con refuerzo)'],
 };
 
@@ -51,16 +51,27 @@ export function nextWOId(db: DB) {
 }
 
 /** Operaciones de referencia; los tiempos escalan con k = max(0,5; L/100). */
-export function templateOperations(L: number, reinforce: boolean): WOOperation[] {
+export function templateOperations(L: number, reinforce: boolean, mode: 'reparar' | 'inspeccionar' = 'reparar', verifyFirst = false): WOOperation[] {
   const k = Math.max(0.5, L / 100);
+  if (mode === 'inspeccionar') {
+    // Punto Normal: la OT es de monitoreo (inspección y END), no de reparación.
+    return [
+      { id: uid(), text: 'Seguridad y acceso: bajar la compuerta o la caja a tierra o calzarla, LOTO y limpieza de la zona.', people: 2, hours: 1 },
+      { id: uid(), text: 'END (MT/PT) por personal calificado (ISO 9712 / ASNT nivel II): medir la longitud real y la punta de la grieta.', people: 1, hours: 1 },
+      { id: uid(), text: 'Registro de la medida y de fotos en la plataforma.', people: 1, hours: 0.5 },
+    ];
+  }
   const ops: WOOperation[] = [
+    ...(verifyFirst
+      ? [{ id: uid(), text: 'Verificación antes de operar: inspección y END del punto (posible crítico no verificado). Si L ≥ Danger, el equipo no opera hasta reparar.', people: 1, hours: 1 }]
+      : []),
     {
       id: uid(),
-      text: 'Seguridad y preparación: bajar la compuerta o la caja a tierra o calzarla mecánicamente (nunca confiar en el cilindro), LOTO, liberar la energía hidráulica almacenada, permiso de trabajo en caliente y limpieza de la zona.',
+      text: 'Seguridad y preparación: bajar la compuerta o la caja a tierra o calzarla mecánicamente (nunca confiar en el cilindro), LOTO, liberar la energía hidráulica almacenada, desconectar baterías y módulos electrónicos, permiso de trabajo en caliente y limpieza de la zona.',
       people: 2,
       hours: 1.5,
     },
-    { id: uid(), text: 'END inicial (MT/PT) para ubicar la punta real de la grieta.', people: 1, hours: 1 },
+    { id: uid(), text: 'END inicial (MT/PT) por personal calificado (ISO 9712 / ASNT nivel II) para ubicar la punta real de la grieta.', people: 1, hours: 1 },
     {
       id: uid(),
       text: 'Perforaciones de alivio en las puntas y arco-aire hasta metal sano; verificar con MT/PT. Vigía contra incendio y extracción de humos.',
@@ -69,7 +80,7 @@ export function templateOperations(L: number, reinforce: boolean): WOOperation[]
     },
     {
       id: uid(),
-      text: 'Precalentamiento y soldadura según WPS calificada (AWS D14.3 / D1.1) con soldador calificado; E7018 de horno; controlar temperatura entre pasadas.',
+      text: 'Precalentamiento y soldadura según WPS calificada (AWS D14.3 / D1.1) con soldador calificado; electrodo de bajo hidrógeno de horno; controlar temperatura entre pasadas; pinza de tierra junto a la soldadura, sin que la corriente atraviese pasadores, rodamientos ni cilindros.',
       people: 1,
       hours: r1(2 + 1.2 * k),
     },
@@ -83,15 +94,16 @@ export function templateOperations(L: number, reinforce: boolean): WOOperation[]
     });
   }
   ops.push(
-    { id: uid(), text: 'Esmerilado y END final (idealmente 24 a 48 h después, por fisuración por hidrógeno).', people: 2, hours: 1.5 },
+    { id: uid(), text: 'Esmerilado y END final con el criterio de aceptación de la WPS (idealmente 24 a 48 h después, por fisuración por hidrógeno).', people: 2, hours: 1.5 },
     { id: uid(), text: 'Registro de la intervención y cierre de la OT.', people: 1, hours: 0.5 },
   );
   return ops;
 }
 
-export function templateMaterials(L: number, reinforce: boolean): WOMaterial[] {
+export function templateMaterials(L: number, reinforce: boolean, mode: 'reparar' | 'inspeccionar' = 'reparar'): WOMaterial[] {
+  if (mode === 'inspeccionar') return [{ id: uid(), text: 'Kit de END (MT o PT)', qty: 1, unit: 'kit' }];
   const m: WOMaterial[] = [
-    { id: uid(), text: 'Electrodo E7018 (conservado en horno)', qty: Math.max(2, Math.ceil(L / 150) + 1), unit: 'kg' },
+    { id: uid(), text: 'Electrodo E7018 o el que indique la WPS (conservado en horno)', qty: Math.max(2, Math.ceil(L / 150) + 1), unit: 'kg' },
     { id: uid(), text: 'Electrodos de carbón para arco-aire', qty: Math.max(5, Math.ceil(L / 50)), unit: 'u' },
     { id: uid(), text: 'Discos de corte y desbaste', qty: 6, unit: 'u' },
     { id: uid(), text: 'Kit de END (MT o PT)', qty: 1, unit: 'kit' },
@@ -103,7 +115,8 @@ export function templateMaterials(L: number, reinforce: boolean): WOMaterial[] {
 
 export function createWorkOrder(db: DB, pa: PointAnalysis, unit: UnitAnalysis): WorkOrder {
   const L = pa.length ?? 0;
-  const lastComment = [...pa.series].reverse().find((s) => s.comment && !s.repaired)?.comment ?? '';
+  const curCycle = pa.series[pa.series.length - 1]?.cycle ?? 0;
+  const lastComment = [...pa.series].reverse().find((s) => s.cycle === curCycle && s.comment && !s.repaired)?.comment ?? '';
   const broken = pa.fractured || isFractureComment(lastComment);
   const reinforce = pa.recurrent || broken;
   const created = today();
@@ -115,21 +128,26 @@ export function createWorkOrder(db: DB, pa: PointAnalysis, unit: UnitAnalysis): 
       : Tp != null && unit.usageForecast && unit.nowDate
         ? addDays(unit.nowDate, Tp / unit.usageForecast)
         : null;
+  const tooClose = pa.status !== 'critico' && Tp != null && Tp <= 200;
   const maintenanceType =
-    pa.status === 'critico'
+    pa.status === 'critico' || tooClose || pa.unverified
       ? MAINTENANCE_TYPES[0]
       : pa.status === 'alerta'
         ? MAINTENANCE_TYPES[2]
         : MAINTENANCE_TYPES[3];
+  const mode = pa.status === 'normal' && !pa.unverified && !tooClose ? 'inspeccionar' : 'reparar';
   const p = pa.point;
   const desc = [
     `${p.code} (${p.description}): grieta de ${L} mm, estado ${STATUS_LABEL[pa.status]} (Caution ${p.caution} mm, Danger ${p.danger} mm), medida el ${pa.lastDate}.`,
     pa.rate != null ? `Ritmo ${pa.rate.toFixed(1).replace('.', ',')} mm por cada 100 h.` : '',
     pa.status === 'critico'
-      ? 'Supera Danger: reparar antes de continuar operando (equipo fuera de servicio).'
+      ? pa.fractured
+        ? 'Crítico (fractura reportada): reparar antes de continuar operando (equipo fuera de servicio).'
+        : 'Supera Danger: reparar antes de continuar operando (equipo fuera de servicio).'
       : Tp != null
         ? `Pronóstico: Danger en ${fmtH(pa.toDanger.central ?? Tp)} h (pesimista ${fmtH(Tp)} h).`
         : '',
+    `Acción de la plataforma: ${pa.action}`,
     lastComment ? `Comentario del inspector: "${lastComment}".` : '',
     pa.recurrent ? `Punto reincidente (${pa.kpis.repairs} reparaciones): requiere análisis de causa raíz.` : '',
     pa.rcaRequired && !pa.recurrent ? 'Operó sobre Danger o se fracturó: requiere análisis de causa raíz.' : '',
@@ -153,12 +171,14 @@ export function createWorkOrder(db: DB, pa: PointAnalysis, unit: UnitAnalysis): 
     statusAtCreation: pa.status,
     lengthAtCreation: pa.length,
     failureMode: broken ? ISO.failureMode[1] : ISO.failureMode[0],
-    mechanism: broken ? ISO.mechanism[1] : ISO.mechanism[0],
+    // Una fractura que viene de una grieta de fatiga sigue siendo mecanismo 2.6; el modo BRD registra la rotura.
+    mechanism: ISO.mechanism[0],
     cause: pa.recurrent ? ISO.cause[1] : ISO.cause[0],
     detection: ISO.detection[0],
     activity: reinforce ? ISO.activity[1] : ISO.activity[0],
-    operations: templateOperations(L, reinforce),
-    materials: templateMaterials(L, reinforce),
+    operations: templateOperations(L, reinforce, mode, pa.unverified),
+    materials: templateMaterials(L, reinforce, mode),
+    otherCost: 0,
     rate: db.settings.rate,
     report: '',
     closeDate: null,
@@ -184,14 +204,24 @@ export interface CloseInput {
 
 /** Cierra la OT y, si se pide, registra la reparación (L = 0) o la longitud residual en el historial. */
 export function closeWO(db: DB, wo: WorkOrder, c: CloseInput): DB {
-  const closed: WorkOrder = {
-    ...wo,
-    state: 'cerrada',
-    history: [...wo.history, ...(wo.state !== 'ejecutada' ? [{ state: 'ejecutada' as const, at: new Date().toISOString() }] : []), { state: 'cerrada', at: new Date().toISOString() }],
-    report: c.report,
-    closeDate: c.date,
-    closeHours: c.hours,
-  };
+  // Con END final rechazado el trabajo no es conforme: la OT queda Ejecutada con retrabajo pendiente, no se cierra.
+  const rework = c.register && !c.ndtOk;
+  const now = new Date().toISOString();
+  const closed: WorkOrder = rework
+    ? {
+        ...wo,
+        state: 'ejecutada',
+        history: wo.state !== 'ejecutada' ? [...wo.history, { state: 'ejecutada', at: now }] : wo.history,
+        report: `${c.report}\nEND final con indicación (${c.residual ?? '—'} mm): retrabajo requerido antes de cerrar.`,
+      }
+    : {
+        ...wo,
+        state: 'cerrada',
+        history: [...wo.history, ...(wo.state !== 'ejecutada' ? [{ state: 'ejecutada' as const, at: now }] : []), { state: 'cerrada', at: now }],
+        report: c.report,
+        closeDate: c.date,
+        closeHours: c.hours,
+      };
   let next: DB = { ...db, workOrders: db.workOrders.map((w) => (w.id === wo.id ? closed : w)) };
   if (!c.register) return next;
   const [unit, code] = wo.pointKey.split('|');

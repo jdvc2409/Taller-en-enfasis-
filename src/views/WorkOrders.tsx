@@ -138,6 +138,10 @@ function WODoc({ id }: { id: string }) {
   const p = fleet.points.find((x) => x.point.key === wo.pointKey);
   const unit = fleet.units.find((u) => u.unitId === wo.pointKey.split('|')[0]);
   const ro = fleet.isPast || wo.state === 'cerrada';
+  // Un punto Crítico, fracturado o posiblemente crítico no admite bajar la prioridad ni diferir la reparación.
+  const locked = !!p && (p.status === 'critico' || p.fractured || p.unverified || (p.priority === 'P1' && wo.priority === 'P1'));
+  const pointLast = p?.series.filter((s) => s.length != null).slice(-1)[0]?.date ?? unit?.nowDate ?? '2000-01-01';
+  const lateDue = !!(wo.dueDate && p?.toDanger.datePess && wo.dueDate > p.toDanger.datePess && p.status !== 'critico');
   const set = (patch: Partial<WorkOrder>) => update((d) => ({ ...d, workOrders: d.workOrders.map((w) => (w.id === wo.id ? { ...w, ...patch } : w)) }));
   const setOp = (opId: string, patch: Partial<WOOperation>) => set({ operations: wo.operations.map((o) => (o.id === opId ? { ...o, ...patch } : o)) });
   const setMat = (mId: string, patch: Partial<WOMaterial>) => set({ materials: wo.materials.map((m) => (m.id === mId ? { ...m, ...patch } : m)) });
@@ -221,7 +225,7 @@ function WODoc({ id }: { id: string }) {
         <div className="form-grid">
           {field(
             'Tipo de mantenimiento',
-            <select value={wo.maintenanceType} disabled={ro} onChange={(e) => set({ maintenanceType: e.target.value })}>
+            <select value={wo.maintenanceType} disabled={ro || locked} onChange={(e) => set({ maintenanceType: e.target.value })}>
               {[...new Set([wo.maintenanceType, ...MAINTENANCE_TYPES])].map((t) => (
                 <option key={t}>{t}</option>
               ))}
@@ -230,16 +234,28 @@ function WODoc({ id }: { id: string }) {
           {field('Tipo de notificación', <input value={wo.notificationType} disabled={ro} onChange={(e) => set({ notificationType: e.target.value })} />)}
           {field(
             'Prioridad',
-            <select value={wo.priority} disabled={ro} onChange={(e) => set({ priority: e.target.value as WorkOrder['priority'] })}>
+            <select value={wo.priority} disabled={ro || locked} onChange={(e) => set({ priority: e.target.value as WorkOrder['priority'] })}>
               {['P1', 'P2', 'P3', 'P4'].map((x) => (
                 <option key={x}>{x}</option>
               ))}
             </select>,
           )}
           {field('Fecha de creación', <input type="date" value={wo.createdAt} disabled />)}
-          {field('Fecha límite (antes de Danger)', <input type="date" value={wo.dueDate ?? ''} disabled={ro} onChange={(e) => set({ dueDate: e.target.value || null })} />)}
+          {field(
+            'Fecha límite (antes de Danger)',
+            <>
+              <input type="date" value={wo.dueDate ?? ''} disabled={ro} onChange={(e) => set({ dueDate: e.target.value || null })} />
+              {lateDue && <span className="tiny" style={{ color: 'var(--alerta)' }}>Posterior a la fecha pesimista de Danger ({fmtDate(p!.toDanger.datePess)}).</span>}
+            </>,
+          )}
           {field('Fecha programada', <input type="date" value={wo.scheduledDate ?? ''} disabled={ro} onChange={(e) => set({ scheduledDate: e.target.value || null })} />)}
         </div>
+        {locked && !ro && (
+          <p className="tiny muted" style={{ margin: '10px 0 0' }}>
+            Tipo y prioridad bloqueados: el punto está {p!.status === 'critico' ? 'Crítico' : 'en P1'}{p!.fractured ? ' con fractura reportada' : ''}
+            {p!.unverified ? ' (posible crítico no verificado)' : ''}. No se puede diferir ni bajar la prioridad mientras siga así.
+          </p>
+        )}
         <label className="f" style={{ marginTop: 14 }}>
           Descripción
           <textarea value={wo.description} disabled={ro} rows={4} onChange={(e) => set({ description: e.target.value })} />
@@ -378,11 +394,17 @@ function WODoc({ id }: { id: string }) {
             <dd>
               <input type="number" min={0} value={wo.rate} disabled={ro} onChange={(e) => set({ rate: Math.max(0, num(e.target.value)) })} style={{ width: 80, textAlign: 'right' }} /> USD/h
             </dd>
-            <dt style={{ fontWeight: 600, color: 'var(--tinta)' }}>Costo de mano de obra</dt>
-            <dd style={{ fontFamily: 'var(--fuente-c)', fontSize: 24, fontWeight: 600 }}>{fmt(hh * wo.rate)} USD</dd>
+            <dt>Mano de obra</dt>
+            <dd>{fmt(hh * wo.rate)} USD</dd>
+            <dt>Materiales, repuestos y otros</dt>
+            <dd>
+              <input type="number" min={0} value={wo.otherCost ?? 0} disabled={ro} onChange={(e) => set({ otherCost: Math.max(0, num(e.target.value)) })} style={{ width: 90, textAlign: 'right' }} /> USD
+            </dd>
+            <dt style={{ fontWeight: 600, color: 'var(--tinta)' }}>Costo total de la OT</dt>
+            <dd style={{ fontFamily: 'var(--fuente-c)', fontSize: 24, fontWeight: 600 }}>{fmt(hh * wo.rate + (wo.otherCost ?? 0))} USD</dd>
           </dl>
           <p className="tiny muted" style={{ margin: '10px 0 0' }}>
-            Base para el costo de mantenimiento por falla (CMF) y el costo de mantenimiento por valor (CPMV). Materiales no incluidos.
+            Base para el CMF (costo de mantenimiento / facturación) y el CPMV (costo de mantenimiento / valor de reposición).
           </p>
           {wo.state === 'cerrada' && (
             <>
@@ -398,7 +420,7 @@ function WODoc({ id }: { id: string }) {
           )}
         </Panel>
       </div>
-      {!fleet.isPast && wo.state !== 'cerrada' && (
+      {!fleet.isPast && wo.state === 'notificacion' && (
         <div className="no-print">
           <button className="btn danger sm" onClick={remove}>
             Eliminar OT
@@ -411,7 +433,7 @@ function WODoc({ id }: { id: string }) {
           fleet={fleet}
           defaultHours={unit.nowHours != null && unit.nowDate && unit.usageForecast ? Math.round((unit.nowHours + Math.max(daysBetween(unit.nowDate, today()), 0) * unit.usageForecast) * 10) / 10 : 0}
           minHours={unit.nowHours ?? 0}
-          minDate={unit.nowDate ?? '2000-01-01'}
+          minDate={pointLast}
           onCancel={() => setClosing(false)}
           onClose={(c) => {
             update((d) => closeWO(d, d.workOrders.find((w) => w.id === wo.id)!, c));
@@ -439,7 +461,7 @@ function CloseDialog({
   onCancel: () => void;
   onClose: (c: CloseInput) => void;
 }) {
-  const [date, setDate] = useState(today() < minDate ? addDays(minDate, 1) : today());
+  const [date, setDate] = useState(today() <= minDate ? addDays(minDate, 1) : today());
   const [hours, setHours] = useState(String(defaultHours));
   const [report, setReport] = useState('');
   const [register, setRegister] = useState(true);
@@ -447,7 +469,7 @@ function CloseDialog({
   const [residual, setResidual] = useState('');
   const h = num(hours);
   const errors: string[] = [];
-  if (date < minDate) errors.push(`La fecha no puede ser anterior a la última inspección (${fmtDate(minDate)}).`);
+  if (date <= minDate) errors.push(`La fecha de cierre debe ser posterior a la última medida del punto (${fmtDate(minDate)}), para no reemplazar esa evidencia.`);
   if (!(h >= minHours)) errors.push(`El horómetro no puede ser menor que el último registrado (${fmt(minHours, 1)} h).`);
   if (!report.trim()) errors.push('Escriba el reporte del trabajo realizado.');
   if (register && !ndtOk && !(num(residual) > 0)) errors.push('Indique la longitud residual que mostró el END final.');
@@ -462,7 +484,7 @@ function CloseDialog({
           <div className="grid-2" style={{ gap: 12 }}>
             <label className="f">
               Fecha de cierre
-              <input type="date" value={date} min={minDate} onChange={(e) => setDate(e.target.value)} />
+              <input type="date" value={date} min={addDays(minDate, 1)} onChange={(e) => setDate(e.target.value)} />
             </label>
             <label className="f">
               Horómetro al cierre (h)
@@ -491,10 +513,15 @@ function CloseDialog({
                 <label className="f" style={{ marginTop: 10 }}>
                   Longitud residual medida en el END final (mm)
                   <input inputMode="decimal" value={residual} onChange={(e) => setResidual(e.target.value)} />
-                  <span className="tiny muted">No se registra como reparación: el punto conserva la grieta residual y su ciclo.</span>
+                  <span className="tiny muted">No se registra como reparación: la OT queda Ejecutada con retrabajo pendiente y el punto sigue en su estado hasta un END aceptado.</span>
                 </label>
               )}
             </div>
+          )}
+          {!register && (
+            <p className="tiny" style={{ margin: 0, color: 'var(--alerta)' }}>
+              Sin registrar la reparación, el punto seguirá en su estado actual y volverá a aparecer en "Sugeridas".
+            </p>
           )}
           {errors.length > 0 && (
             <ul className="small" style={{ margin: 0, paddingLeft: 18, color: 'var(--alerta)' }}>
@@ -512,7 +539,7 @@ function CloseDialog({
               disabled={errors.length > 0}
               onClick={() => onClose({ date, hours: h, report: report.trim(), register, ndtOk, residual: ndtOk ? null : num(residual) })}
             >
-              Cerrar OT
+              {register && !ndtOk ? 'Registrar retrabajo' : 'Cerrar OT'}
             </button>
           </div>
         </div>

@@ -10,15 +10,28 @@ export const SYSTEM = `Eres un ingeniero de confiabilidad experto en integridad 
 Conoces el criterio del formato de inspección: Normal (L < Caution, seguimiento en la frecuencia normal), Alerta (Caution ≤ L < Danger, aumentar la frecuencia de inspección y programar reparación), Crítico (L ≥ Danger, reparar antes de continuar operando) y N/I (no inspeccionado por acceso, limpieza o programación; un N/I no es un punto sano).
 Usas el vocabulario del curso de Gestión del Mantenimiento: mantenimiento preventivo basado en condición vs. correctivo (diferido / inmediato), planeación ("¿qué?") vs. programación ("¿cuándo?"), ciclo de la OT (Notificación → Aprobación / OT abierta → Planeación → Programación → Ejecución → Reporte → Cierre), MTBF, backlog, criticidad (probabilidad × consecuencia), análisis de causa raíz, mantenimiento proactivo e ISO 14224.
 Los datos vienen de campo y pueden tener errores: señálalos cuando los veas.
-Responde en español, en Markdown breve, con cifras, fechas y horas concretas y una decisión clara. No inventes datos: si algo no está en la información recibida, dilo. Prioriza la seguridad de las personas sobre la producción.`;
+Reglas de seguridad que no se negocian:
+- Nunca recomiendes operar con un punto Crítico, fracturado o "posible crítico no verificado". Mientras exista uno, la respuesta a "¿puede operar el equipo?" es NO.
+- Una medida dudosa que indique peor condición se trata como real hasta verificarla en campo. Nunca bajes el estado ni la prioridad que calculó la plataforma; puedes proponer subirlos.
+- No presentes procedimientos de soldadura como aprobados: remite a la WPS calificada y al fabricante. Eres apoyo; la decisión es del ingeniero responsable.
+Responde en español, en Markdown breve, con cifras, fechas y horas concretas y una decisión clara. Usa las fechas que trae la información; no calcules fechas propias. No inventes datos: si algo no está en la información recibida, dilo. Prioriza la seguridad de las personas sobre la producción.`;
 
 const n = (x: number | null | undefined, d = 0) => (x == null || !isFinite(x) ? '—' : x.toLocaleString('es-CO', { maximumFractionDigits: d }));
 
+function eta(label: string, c: PointAnalysis['toDanger'], passed: boolean) {
+  if (passed) return `${label}: ya superado`;
+  if (c.central == null && c.pessimistic == null) return `${label}: sin cruce en 15.000 h`;
+  return `${label}: pesimista ${n(c.pessimistic)} h (${c.datePess ?? '—'}), central ${n(c.central)} h (${c.date ?? '—'}), optimista ${c.optimistic == null ? '> 15.000' : n(c.optimistic)} h (${c.dateOpt ?? '—'})`;
+}
+
 function pointLine(p: PointAnalysis) {
-  const d = p.toDanger;
-  return `- ${p.point.code} (${p.point.description}; zona ${p.zone.name}; C ${p.point.caution} / D ${p.point.danger} mm; consecuencia ${p.consequence}): ${STATUS_LABEL[p.status]}, L = ${p.length ?? 'N/I'} mm (medida ${p.lastDate ?? '—'}), ${p.priority} (${p.priorityWhy}). Ritmo ${p.rate == null ? '—' : n(p.rate, 1) + ' mm/100 h'}. Danger: ${
-    p.status === 'critico' ? 'ya superado' : d.central == null && d.pessimistic == null ? 'sin cruce en 15.000 h' : `pesimista ${n(d.pessimistic)} h, central ${n(d.central)} h`
-  }. Reparaciones ${p.kpis.repairs}. Acción: ${p.action}${p.statusNote ? ' Nota: ' + p.statusNote : ''}`;
+  const marks = [
+    p.fractured && 'FRACTURA o grieta pasante reportada',
+    p.unverified && 'POSIBLE CRÍTICO NO VERIFICADO',
+    p.lastNI && 'no medido en la última inspección',
+    p.rcaRequired && 'requiere análisis de causa raíz',
+  ].filter(Boolean);
+  return `- ${p.point.code} (${p.point.description}; zona ${p.zone.name}; C ${p.point.caution} / D ${p.point.danger} mm; consecuencia ${p.consequence}): ${STATUS_LABEL[p.status]}, L = ${p.length ?? 'N/I'} mm (medida ${p.lastDate ?? '—'}), ${p.priority} (${p.priorityWhy}).${marks.length ? ' Marcas: ' + marks.join('; ') + '.' : ''} Pronóstico ${p.fit.model}, confianza ${p.fit.confidence}, ritmo ${p.rate == null ? '—' : n(p.rate, 1) + ' mm/100 h'}. ${eta('Danger', p.toDanger, p.status === 'critico')}. ${eta('Caution', p.toCaution, p.status === 'alerta' || p.status === 'critico')}. Reparaciones ${p.kpis.repairs}. Acción: ${p.action}${p.statusNote ? ' Nota: ' + p.statusNote : ''}`;
 }
 
 function historyLines(p: PointAnalysis) {
@@ -34,12 +47,12 @@ export function unitContext(db: DB, fleet: FleetAnalysis, u: UnitAnalysis) {
   const corte = fleet.isPast ? `Fecha de corte (máquina del tiempo): ${fleet.asOf}. Solo cuentan los datos hasta esa fecha.\n` : '';
   const wos = fleet.workOrders.filter((w) => w.pointKey.startsWith(u.unitId + '|'));
   return `${corte}EQUIPO ${u.unitId} (${u.model}, flota ${db.fleet})
-Horómetro actual ${n(u.nowHours, 1)} h${u.nowEstimated ? ' (estimado)' : ''} al ${u.nowDate}; uso ${n(u.usage, 1)} h/día; ${u.events.length} inspecciones desde ${u.firstDate}.
+Horómetro actual ${n(u.nowHours, 1)} h${u.nowEstimated ? ' (estimado)' : ''} al ${u.nowDate}; uso promedio ${n(u.usage, 1)} h/día; uso para convertir horas a fechas ${n(u.usageForecast, 1)} h/día; ${u.events.length} inspecciones desde ${u.firstDate}.
 
 INDICADORES
 - Puntos: Crítico ${u.counts.critico}, Alerta ${u.counts.alerta}, Normal ${u.counts.normal}, Sin grieta ${u.counts.sin}, N/I ${u.counts.ni}.
-- Reparaciones ${u.repairs}; MTBF estructural (horas observadas / reparaciones) ${n(u.mtbf)} h; fallas (episodios sobre Danger o fractura) ${u.failures}; MTBF de falla ${n(u.mtbfFailure)} h.
-- Horas operando con al menos un punto crítico: ${n(u.hoursWithCriticalConfirmed)} h confirmadas, hasta ${n(u.hoursWithCritical)} h.
+- Reparaciones ${u.repairs}; "MTBF estructural" del encargo = horas observadas / reparaciones = ${n(u.mtbf)} h (en rigor es un tiempo medio entre reparaciones). Fallas (episodios sobre Danger o fractura) ${u.failures}; MTBF de falla (definición del curso) ${n(u.mtbfFailure)} h.
+- Horas operando con al menos un punto crítico: ${n(u.hoursWithCriticalConfirmed)} h confirmadas, hasta ${n(u.hoursWithCritical)} h (hasta la reparación o el corte).
 - Inspecciones a tiempo (≤ ${db.settings.targetInterval} h): ${u.onTimeCount[0]} de ${u.onTimeCount[1]} (${n((u.onTimePct ?? 0) * 100)} %). Celdas N/I: ${u.niCells}. Ritmo típico de crecimiento ${n(u.typicalRate, 1)} mm/100 h.
 - OT: ${fleet.backlog.open} abiertas, backlog ${n(fleet.backlog.hh, 1)} h-hombre = ${n(fleet.backlog.weeks, 1)} semanas (capacidad ${db.settings.capacity} h-h/semana).
 
@@ -79,11 +92,11 @@ Con esta información, escribe el INFORME EJECUTIVO del equipo para el jefe de m
 export function pointPrompt(db: DB, fleet: FleetAnalysis, p: PointAnalysis) {
   const u = fleet.units.find((x) => x.unitId === p.point.unit)!;
   const corte = fleet.isPast ? `Fecha de corte (máquina del tiempo): ${fleet.asOf}.\n` : '';
-  return `${corte}PUNTO ${p.point.code} del equipo ${p.point.unit} (${u.model}), horómetro actual ${n(u.nowHours, 1)} h, uso ${n(u.usage, 1)} h/día.
+  return `${corte}PUNTO ${p.point.code} del equipo ${p.point.unit} (${u.model}), horómetro actual ${n(u.nowHours, 1)} h al ${u.nowDate}, uso para fechas ${n(u.usageForecast, 1)} h/día.
 ${pointLine(p)}
 Método del pronóstico: ${p.fit.note}
-Confianza: ${p.fit.confidence}. Llega a Caution: ${p.toCaution.central === 0 ? 'ya superado' : `${n(p.toCaution.pessimistic)}–${n(p.toCaution.central)} h`}. Próxima inspección: ${p.nextInspection == null ? 'reparar antes' : '≤ ' + n(p.nextInspection) + ' h'}.
-Indicadores: ${p.kpis.repairs} reparaciones; reaparece tras reparar en ${n(p.kpis.reappearMean)} h de media; vida de la grieta ${n(p.kpis.lifeMean)} h; horas sobre Danger ${n(p.kpis.dangerConfirmed)} confirmadas, hasta ${n(p.kpis.dangerMax)}.
+Confianza: ${p.fit.confidence}. Próxima inspección: ${p.nextInspection == null ? 'reparar antes de operar' : '≤ ' + n(p.nextInspection) + ' h'}.
+Indicadores: ${p.kpis.repairs} reparaciones; reaparece tras reparar en ${n(p.kpis.reappearMean)} h de media; vida de la grieta ${n(p.kpis.lifeMean)} h; horas sobre Danger ${n(p.kpis.dangerConfirmed)} confirmadas, hasta ${n(p.kpis.dangerMax)} (cota superior ${n(p.kpis.dangerUpper)}).
 Alertas: ${p.alerts.map((a) => a.text).join(' ') || 'ninguna'}
 Ritmo típico del equipo: ${n(u.typicalRate, 1)} mm/100 h. Criterios: crecimiento rápido ≥ ${db.settings.fastGrowth} mm/100 h; intervalo objetivo ${db.settings.targetInterval} h.
 
@@ -106,7 +119,8 @@ Analiza la imagen:
 2. ¿Parece una grieta pasante o una fractura?
 3. ¿Es coherente con la medida registrada?
 4. ¿Qué verificar en campo (END, limpieza, medición)?
-Si la foto no permite concluir, dilo claramente y explica por qué.`;
+Si la foto no permite concluir, dilo claramente y explica por qué.
+La foto no sustituye el END. Si sugiere una grieta pasante o una fractura no registrada, recomienda tratar el punto como Crítico hasta verificarlo. Nunca concluyas que la grieta es menor que la medida registrada solo por la foto.`;
 }
 
 /** Reduce la imagen a máx. 1568 px por lado y la devuelve en JPEG base64 (sin el prefijo data:). */
