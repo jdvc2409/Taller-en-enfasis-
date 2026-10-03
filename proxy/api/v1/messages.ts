@@ -3,6 +3,8 @@
 // las consultas de la plataforma: modelos permitidos, mensaje de sistema propio, tamaño y frecuencia limitados.
 import { SYSTEM } from '../../lib/system.js';
 
+declare const process: { env: Record<string, string | undefined> };
+
 const ORIGINS = ['https://jdvc2409.github.io', 'http://localhost:5173', 'http://localhost:4173', 'http://localhost:4180'];
 const MODELS = new Set(['claude-opus-5-5', 'claude-sonnet-5', 'claude-haiku-4-5']);
 const MAX_BODY = 4_000_000; // texto + una imagen de 1568 px en JPEG
