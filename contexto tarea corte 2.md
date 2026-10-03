@@ -5,10 +5,10 @@ Este documento reúne todo lo que se hizo: el enunciado, las decisiones, los dat
 - **Materia:** Gestión del Mantenimiento, Universidad de La Sabana. Trabajo individual del segundo corte.
 - **Entrega:** exposición en vivo más un link, el **sábado 10 de octubre de 2026**.
 - **Link de la plataforma:** https://jdvc2409.github.io/Taller-en-enfasis-/
-- **Repositorio:** https://github.com/jdvc2409/Taller-en-enfasis- (público, rama `main`).
+- **Repositorio:** https://github.com/jdvc2409/Taller-en-enfasis- (público). La rama `main` es la versión publicada; la rama `rediseno-sobrio` tiene la interfaz rediseñada, todavía sin mezclar (ver la sección 2.1).
 - **Intermediario de IA:** https://integridad-estructural-ia.vercel.app (proyecto de Vercel `integridad-estructural-ia`).
 - **Carpeta local:** `/home/juan/taller en enfasis/Taller-en-enfasis-`
-- **Construido el** 3 de octubre de 2026 con Claude Code (Claude Opus 5.5), más un agente revisor independiente.
+- **Construido el** 3 de octubre de 2026 con Claude Code (Claude Opus 5.5), más un agente revisor independiente. El rediseño y la interfaz guiada se hicieron el mismo día, en la rama `rediseno-sobrio`, en dos sesiones de Claude Code.
 
 ---
 
@@ -81,11 +81,23 @@ Material del curso consultado: `curso/Semana_1` a `Semana_5` (PDF).
 |---|---|
 | Alcance de datos | Un solo equipo real (631-01). La plataforma funciona para N equipos, pero **no se inventaron equipos ni datos**. |
 | Publicación | GitHub Pages en `jdvc2409/Taller-en-enfasis-`, desplegado con GitHub Actions. |
-| Interfaz | **Oscura por defecto**, pulida y profesional, sin estética de juego ni neón. Hay un botón de tema claro. |
+| Interfaz (versión publicada, `main`) | **Oscura por defecto**, pulida y profesional, sin neón. Hay un botón de tema claro. |
+| Interfaz (rama `rediseno-sobrio`) | Después, la persona pidió que se viera **seria, elegante y muy intuitiva**, porque la versión oscura con cuadrícula, marcadores que pulsan y tipografía condensada "parecía un juego". Se pasó a **tema claro por defecto**, se agregó una pantalla de inicio, guías y un asistente de inspección. Todo sin tocar la lógica. Ver la sección 2.1. |
 | IA | Modelo por defecto `claude-opus-5-5`. Alternativas: `claude-sonnet-5` y `claude-haiku-4-5`. |
 | Clave de API | No va en el código. **Cualquier persona puede usar la IA desde el link**, a través de un intermediario en Vercel que guarda la clave como secreto. Ver la sección 15. |
 | Revisión de ingeniería | La pidió la persona. Un segundo agente revisó en paralelo los cálculos, la lógica de mantenimiento y la seguridad, y sus correcciones se aplicaron. |
 | Herramientas de diseño | Figma no estaba conectado. El diseño se hizo en código y se revisó con capturas de Playwright en oscuro, claro y celular. |
+
+---
+
+### 2.1 Versiones de la interfaz y estado de las ramas
+
+| Rama | Qué tiene | Publicada |
+|---|---|---|
+| `main` | Interfaz original: tema oscuro, Flota como portada (`#/`), formulario de inspección en una sola página, 3D simplificado | **Sí**, en https://jdvc2409.github.io/Taller-en-enfasis-/ |
+| `rediseno-sobrio` | Rediseño sobrio, pantalla de inicio, interfaz guiada, asistente de inspección y 3D detallado (4 commits sobre `main`) | No. El workflow solo publica `main`. Para verla: `git checkout rediseno-sobrio && npm install && npm run dev`. |
+
+**El motor de cálculo (`src/lib/*`) es idéntico en las dos ramas**, salvo el archivo nuevo `src/lib/glossary.ts`, que solo contiene textos de ayuda. Las 37 pruebas de aceptación pasan en ambas. Para publicar el rediseño hay que mezclar `rediseno-sobrio` en `main`; el push a `main` dispara el despliegue.
 
 ---
 
@@ -405,34 +417,65 @@ La persona pidió que otro agente revisara en paralelo que los cálculos fueran 
 
 ## 8. Pantallas y funciones
 
-Las rutas usan `#` para funcionar en GitHub Pages. La barra superior tiene: logo, "Integridad Estructural", Flota, Historial, Órdenes de trabajo, Registrar inspección, Datos y el botón de tema.
+Las rutas usan `#` para funcionar en GitHub Pages. Esta sección describe la rama `rediseno-sobrio`; las diferencias con `main` se indican donde aplican.
 
-### 8.1 Máquina del tiempo (componente compartido en Flota, Equipo, Zona y Punto)
+**Barra superior:** logo, "Integridad Estructural", Inicio, Qué reparar, Historial, Órdenes de trabajo, Registrar inspección, Datos, **Ayuda** y el botón de tema. En `main` no existen Inicio ni Ayuda, y "Qué reparar" se llama Flota.
 
-- Franja con una marca por inspección, coloreada con el peor estado medido ese día, y los años debajo.
-- Se fija la fecha de corte arrastrando, haciendo clic, con las teclas ← → Inicio Fin, o con los botones de inspección anterior y siguiente. "Volver al presente" quita el corte.
-- Con corte en el pasado, la franja se resalta y muestra "Viendo la plataforma como estaba el {fecha}"; las marcas futuras se ven tenues.
-- **Enlace directo con corte:** `#/punto/631-01%7CAP-03?corte=2024-04-30`.
-- El corte se mantiene al navegar entre pantallas hasta volver al presente.
+**Ayuda integrada** (`src/components/Help.tsx` y `src/lib/glossary.ts`):
+- **Guía de pantalla:** una línea arriba de cada pantalla que dice para qué sirve. Se puede cerrar y volver a mostrar.
+- **Botón Ayuda:** panel lateral con la leyenda de estados (color, forma e ícono) y un **glosario con búsqueda** de 22 términos. Entre ellos: punto de inspección, zona, L, Caution, Danger, estado, N/I, prioridad, urgencia, consecuencia, pronóstico, pesimista y central, horómetro, MTBF, OT, reincidente, análisis de causa raíz, matriz de riesgo, "ver el estado en otra fecha", END, intervalo y backlog.
+- **Palabras técnicas con explicación:** Danger, Caution, MTBF, prioridad, N/I y otras muestran su significado al hacer clic.
 
-### 8.2 Flota (`#/`)
+### 8.0 Inicio (`#/`), solo en la rama `rediseno-sobrio`
 
-- Título "Traílla 631G" y un resumen en una línea, con aviso en rojo si hay puntos críticos.
-- Indicadores: puntos en Crítico, en Alerta, horas con punto crítico, MTBF estructural (con el MTBF de falla debajo) y OT abiertas con backlog en semanas.
-- **"Qué atender primero":** prioridad, punto, estado, barra de L frente a Caution y Danger, tiempo a Danger (pesimista – central, con fecha), qué hacer, y Crear OT o un enlace a la OT abierta.
-- **"Reincidentes: análisis de causa raíz pendiente"**, con píldoras de cada punto.
-- Columna lateral: tarjeta del equipo (horómetro, peor estado, una tira con el estado de cada punto) y matriz de riesgo 5×5.
-- Hallazgos principales.
+- Título "Integridad estructural de la flota" y el **veredicto en una frase**: el estado de la flota.
+- **El punto más urgente**, con su acción y los botones para abrirlo y crear su OT (o ver la OT abierta).
+- **"Qué hacer"**, cuatro tareas numeradas:
+  1. Ver qué reparar primero.
+  2. Registrar una inspección, paso a paso, zona por zona.
+  3. Seguir las reparaciones.
+  4. Buscar una medición.
+- **"Cómo leer los colores":** la leyenda de estados.
+- **"Tu traílla 631-01":** el modelo 3D con los puntos por estado y un enlace al equipo.
+
+### 8.1 Ver el estado en otra fecha (máquina del tiempo)
+
+Es un componente compartido en Qué reparar, Equipo, Zona y Punto.
+
+- **En `rediseno-sobrio`:** es una sección **plegable**, "Ver el estado en otra fecha", ubicada debajo del encabezado de la pantalla.
+  - Cuando hay una fecha activa, aparece el aviso **"Estás viendo el {fecha}. Lo que se midió después aparece en gris."** con el botón **"Volver a hoy"**, y la sección se despliega sola.
+- **En `main`:** es una franja fija arriba, con el texto "Viendo la plataforma como estaba el {fecha}" y el botón "Volver al presente".
+- **Funcionamiento común:**
+  - Una marca por inspección, coloreada con el peor estado medido ese día, y los años debajo.
+  - Se elige la fecha arrastrando, haciendo clic, con las teclas ← → Inicio Fin, o con los botones de inspección anterior y siguiente. Las marcas futuras se ven tenues.
+  - **Enlace directo con fecha:** `#/punto/631-01%7CAP-03?corte=2024-04-30`.
+  - La fecha se mantiene al navegar entre pantallas hasta volver a hoy.
+
+### 8.2 Qué reparar (`#/flota`; en `main` es Flota, en `#/`)
+
+- Título "Traílla 631G" y **una sola frase de estado**: "1 punto crítico: reparar antes de continuar operando", o "Ningún punto sobre el límite.". El botón **Registrar inspección** es el único botón principal de la pantalla.
+- **4 indicadores en tarjetas separadas:**
+  - Puntos en Crítico (sobre Danger, el límite de operación segura, o con fractura).
+  - Horas con punto crítico.
+  - MTBF estructural, con la nota "tiempo medio entre reparaciones".
+  - Inspecciones a tiempo.
+- **"Qué atender primero"**, lo primero visible:
+  - Columnas: prioridad, punto, estado, barra de L frente a Caution y Danger, tiempo a Danger (pesimista – central), qué hacer, y Crear OT o un enlace a la OT abierta. Los encabezados están en lenguaje sencillo.
+  - Los reincidentes (análisis de causa raíz pendiente) van plegados al final de la tabla.
+- **"Dónde están las grietas":** el modelo 3D.
+- Después: los hallazgos principales (solo el título; el detalle al hacer clic), la tarjeta del equipo y la matriz de riesgo 5×5.
 
 ### 8.3 Equipo (`#/equipo/631-01`)
 
-- Indicadores: conteos por estado, MTBF estructural, MTBF de falla, horas con punto crítico e inspecciones a tiempo.
-- **Modelo 3D** junto a la lista de zonas. Al pasar el mouse por una zona, se resalta en el 3D.
+- **Modelo 3D arriba** y la lista de zonas. Al pasar el mouse por una zona, se resalta en el 3D.
+- **4 indicadores visibles:** puntos en Crítico, puntos en Alerta, MTBF estructural e inspecciones a tiempo.
+- **"Más indicadores"** (plegable) muestra el detalle completo: Crítico, Alerta, Normal, Sin grieta, MTBF estructural, MTBF de falla, horas con punto crítico, OT abiertas con backlog en semanas e inspecciones a tiempo.
 - **Historia completa en mapa de calor** (12 × 25):
   - Valor en mm (≥ 1000 como 1.1k).
   - R = reparada, rayado = N/I, borde punteado = excluida.
   - Encabezados en ámbar cuando hubo intervalo largo o inspección parcial.
-  - Lo posterior al corte se ve tenue. Clic en una celda abre el punto.
+  - Lo posterior a la fecha elegida se ve tenue. Clic en una celda abre el punto.
+  - En `rediseno-sobrio` cada celda tiene el fondo suave del estado y un borde del color pleno.
 - Todos los hallazgos.
 - Botón **"Informe ejecutivo con IA"**.
 
@@ -455,10 +498,10 @@ Las rutas usan `#` para funcionar en GitHub Pages. La barra superior tiene: logo
   - Pronóstico: línea central discontinua, banda del 90 % y **franja roja sobre Danger** entre el cruce pesimista y el optimista, con el rótulo "Danger ≈ …".
   - **Con corte en el pasado, lo medido después aparece en gris**, para comparar el pronóstico con la realidad.
   - Tooltip con fecha, horas, mm, estado, inspector, comentario y marcas.
-- Cuatro cifras: llega a Caution, llega a Danger, ritmo y próxima inspección. Debajo, la nota del método.
+- Cuatro cifras: llega a Caution, llega a Danger, ritmo y próxima inspección. Debajo, la nota del método. En `rediseno-sobrio`, "¿Por qué?" (urgencia × consecuencia) y "Cómo se calculó" (método) están plegados, y el encabezado explica "Caution (inicio de alerta)" y "Danger (límite de operación segura)".
 - Columna lateral: esquema compacto, indicadores del punto y alertas.
 - **Fotos:** galería con fecha y mm, ampliable. "Agregar fotos" las asocia a la última inspección. "Analizar foto" usa la IA de visión.
-- **Historial del punto:** de la más reciente a la más antigua, con las marcas de calidad explicadas y la casilla Incluida / Excluida.
+- **Historial del punto:** de la más reciente a la más antigua, con las marcas de calidad explicadas y la casilla Incluida / Excluida. En `rediseno-sobrio` muestra las últimas 6 medidas, con un botón para ver todas.
 - OT de este punto.
 
 ### 8.6 Historial (`#/historial`)
@@ -469,18 +512,17 @@ Las rutas usan `#` para funcionar en GitHub Pages. La barra superior tiene: logo
 
 ### 8.7 Registrar inspección (`#/inspeccion/631-01`), réplica digital del Word
 
-- **Encabezado:**
-  - Fecha.
-  - Equipo.
-  - Horas, con un estimado = último horómetro + días × h/día. Valida que no baje y que no supere 24 h/día.
-  - Inspector, con una lista de los conocidos.
-  - Zonas.
-- Tabla de criterios y observaciones generales.
-- **Por cada zona:**
-  - Tabla: código, C/D, L anterior (automática), L actual, estado (automático), N/I, Reparada, comentario y fotos.
-  - Avisos "Reparar antes de continuar operando" y "Menor que la anterior sin reparación".
-  - Esquema de la zona, registro fotográfico y observaciones de la zona.
-- "Guardar inspección" la agrega al historial y recalcula todo. "Imprimir formato" usa estilos de papel.
+**En `rediseno-sobrio`: asistente paso a paso.** Los pasos son Datos → Caja → Eyector → Apron → Revisar y guardar.
+- **Datos:** fecha; equipo; horas, con un estimado = último horómetro + días × h/día, y error si es menor que el último o si supera 24 h/día; e inspector, con una lista de los conocidos.
+- **Un paso por zona**, con una tarjeta por punto que ofrece tres opciones: **"Medí"** (L actual), **"No pude revisarlo"** (N/I) o **"Se reparó"**.
+  - Cada tarjeta muestra Caution, Danger, la L anterior, el estado calculado y el comentario con fotos.
+  - Avisos: "Reparar antes de continuar operando" si el punto queda crítico, y "Menor que la anterior sin reparación".
+  - Si falta el largo aparece: "Escribe el largo, o elige 'No pude revisarlo'".
+- **Navegación:** barra Atrás / Siguiente fija, y una lista de pasos con los ya completos marcados.
+- **Revisar y guardar:** "Guardar inspección" la agrega al historial y recalcula todo.
+- **Imprimir:** sale el formato de campo completo.
+
+**En `main`:** formulario de una sola página, con el encabezado, la tabla de criterios, observaciones generales y, por cada zona, la tabla de puntos, el esquema y las observaciones.
 
 ### 8.8 Órdenes de trabajo (`#/ot` y `#/ot/{id}`)
 
@@ -606,36 +648,55 @@ Los tres usos respondieron con Opus 5.5:
 
 ## 11. Diseño visual
 
-- **Oscuro por defecto**, sobrio, con rotulación industrial y precisión de plano técnico. Una rejilla de plano muy tenue en el fondo. Sin neón, sin brillos, sin tarjetas idénticas con sombra, sin MAYÚSCULAS espaciadas y sin flechas en los botones.
-- **Tipografía**, empaquetada para funcionar sin internet: Barlow (400, 500 y 600) para la interfaz y Barlow Condensed (600 y 700) para títulos y cifras. Cifras tabulares.
-- **Colores** (variables CSS):
-  - Oscuro: fondo `#0e1317`, superficie `#151c21`, tinta `#ecf1f4` y acento azul de plano `#5fa1d6`.
-  - Claro: fondo `#e5e9ec` y acento `#1d5c8c`.
-  - Estados: Normal `#0ca30c`, Alerta `#fab219` y Crítico `#d03b3b`.
-- **El color de estado siempre va con forma:**
-  - Círculo lleno = Normal.
-  - Triángulo = Alerta.
-  - Rombo con "!" = Crítico.
-  - Círculo hueco = Sin grieta.
-  - Círculo punteado = N/I.
-- **Prioridad:** P1 rojo sólido, P2 borde rojo, P3 borde ámbar y P4 gris.
-- **Esquemas:** sobre fondo blanco; en oscuro se invierten con `invert(.88) hue-rotate(180deg)`.
-- **Composición:** paneles con borde de 1 px y radio de 10 px, indicadores en una sola franja dividida, ancho máximo de 1360 px y contenido alineado a la izquierda.
-- **Accesibilidad e impresión:** funciona en celular en una columna, sin desplazamiento horizontal de la página; foco visible con el teclado; estilos de impresión para la OT y el formato de inspección.
-- **Modelo 3D (Three.js):** representación simplificada con primitivas, según la geometría de la sección 7 del prompt.
-  - Puntos como esferas de color, con un halo pulsante en Alerta y Crítico.
-  - Etiquetas atenuadas cuando el punto queda tapado por la estructura.
-  - Casilla "Caja transparente" para ver el eyector.
-  - Se revisó con capturas desde 3 ángulos.
+### 11.1 Rama `rediseno-sobrio`: seria, elegante e intuitiva
 
----
+La persona pidió el rediseño con un sistema de diseño definido, **sin tocar la lógica** (`src/lib/*`, store y `tools/`) y sin hacer push a `main`.
+
+- **Tokens** en `src/styles.css`. El **tema claro es el predeterminado** (`:root`) y el oscuro va en `:root[data-theme='dark']`. El tema inicial es claro, respetando el que el usuario haya guardado.
+  - **Claro:** fondo `#f4f6f8`, superficie `#ffffff`, tinta `#17212a`, acento `#1c4e80`. Normal `#087a6f`, Alerta `#a35d00` y Crítico `#b3261e`, cada uno con su fondo suave (`--normal-fondo`, `--alerta-fondo`, `--critico-fondo`).
+  - **Oscuro:** fondo `#0f1418`, superficie `#171d23`, tinta `#e9eef2`, acento `#86b3de`. Normal `#4cc2a8`, Alerta `#e0a23a` y Crítico `#f07a72`.
+  - **Medidas:** radio de 8 px en paneles y de 4 px en botones y campos. La sombra se usa solo en elementos flotantes (panel de IA y avisos temporales).
+- **Lo que se quitó:**
+  - La cuadrícula del fondo.
+  - La tipografía condensada: solo queda Barlow (títulos de peso 600 en 28, 20 y 16 px; cuerpo de 15/22 px), con cifras tabulares.
+  - Las animaciones decorativas: el pulso de los marcadores críticos, el parpadeo del panel de IA y el pulso del halo del 3D.
+- **Avisos:** borde completo de 1 px en el color del tono y fondo suave; el texto siempre en tinta.
+- **Indicadores:** tarjetas separadas, en vez de una franja dividida.
+- **Campos:** borde `--control` y foco con un contorno de 2 px.
+- **Botón principal:** acento con texto `--sobre-acento`.
+- **Estados:** etiquetas con fondo suave, texto en tinta e ícono de color pleno. Prioridad: P1 relleno rojo, P2 borde rojo, P3 borde ámbar y P4 gris.
+- **Marcadores del esquema:** un disco neutro con el **ícono del estado** dentro (rombo con "!" para Crítico, triángulo para Alerta, círculo para Normal, círculo hueco para Sin grieta). Así el crítico se distingue por forma y no solo por color.
+- **Contraste verificado:** todos los pares de texto superan **4,5:1** (mínimo 4,74:1 en claro y 5,0:1 en oscuro).
+- **Modelo 3D detallado** (`src/components/scraperModel.ts`):
+  - Tractor con capó, rejilla, escape, cabina con postes y vidrios, escalera, pasamanos y guardabarros.
+  - Cuello de cisne de sección cajón, y cilindros hidráulicos con vástago cromado.
+  - Caja con laterales perfilados, nervios, piso inclinado y cuchilla; apron curvo con nervios, pivotes y oreja de levante; eyector con refuerzos.
+  - Llantas con tacos en V.
+  - Materiales PBR, luz de entorno, sombras suaves y aristas finas tipo CAD.
+  - Los puntos críticos y en alerta son más grandes y tienen etiqueta de color. Las coordenadas de los puntos (POS3D) y la interacción no cambiaron.
+- **Interfaz guiada:** pantalla de inicio, guía de una línea por pantalla, botón Ayuda con glosario, palabras técnicas explicadas, hallazgos plegados y textos más cortos (secciones 8.0 a 8.7).
+
+### 11.2 Rama `main`: versión publicada original
+
+- **Oscura por defecto**, con una rejilla tenue de plano en el fondo. Barlow para la interfaz y Barlow Condensed para títulos y cifras.
+- Colores: fondo `#0e1317`, acento `#5fa1d6`, Normal `#0ca30c`, Alerta `#fab219` y Crítico `#d03b3b`.
+- Indicadores en una franja dividida; el marcador crítico pulsa.
+- Modelo 3D simplificado con primitivas.
+
+### 11.3 Común a las dos ramas
+
+- **El color de estado siempre va con forma:** círculo lleno = Normal, triángulo = Alerta, rombo con "!" = Crítico, círculo hueco = Sin grieta y círculo punteado = N/I.
+- Los esquemas van sobre fondo blanco; en oscuro se invierten con `invert(.88) hue-rotate(180deg)`.
+- Ancho máximo de 1360 px, contenido alineado a la izquierda y foco visible con el teclado.
+- Funciona en celular, en una columna y sin desplazamiento horizontal de la página.
+- Estilos de impresión para la OT y el formato de inspección.
 
 ## 12. Arquitectura técnica y archivos
 
 **Stack:**
 - Vite 8, React 18 y TypeScript estricto.
 - SheetJS 0.20.3, instalado desde el CDN oficial porque la versión de npm tiene vulnerabilidades.
-- Three.js, zustand, idb-keyval, @fontsource y el SDK de Anthropic, que se carga bajo demanda.
+- Three.js, zustand, idb-keyval, @fontsource y el SDK de Anthropic, que se carga bajo demanda. En `rediseno-sobrio` se quitó `@fontsource/barlow-condensed`.
 - Gráficas en SVG propio.
 - Desarrollo: tsx y Playwright.
 - `vite.config.ts` con `base: './'`.
@@ -666,10 +727,13 @@ Taller-en-enfasis-/
 │   │   ├── quality.ts             runQuality (marcas y exclusiones), ritmo típico
 │   │   ├── analysis.ts            estado, ciclos, ajuste, pronóstico, prioridad, alertas, indicadores, hallazgos, analyze()
 │   │   ├── ot.ts                  createWorkOrder, plantillas, ISO 14224, flujo, closeWO
-│   │   └── ai.ts                  mensaje de sistema, contextos, askClaude (streaming), mensajes de error
+│   │   ├── ai.ts                  mensaje de sistema, contextos, askClaude (streaming), mensajes de error
+│   │   └── glossary.ts            (rediseño) glosario de 22 términos para la ayuda
 │   ├── components/                Timeline, GrowthChart, HeatHistory, Schematic, Scraper3D (+Lazy3D),
-│   │                              Ranking, RiskMatrix, Findings, AIPanel, ui
-│   └── views/                     Fleet, Unit, Zone, Point, History, WorkOrders, InspectionForm, Data
+│   │                              Ranking, RiskMatrix, Findings, AIPanel, ui,
+│   │                              Help (rediseño: guía, botón Ayuda, términos),
+│   │                              scraperModel.ts (rediseño: geometría 3D detallada)
+│   └── views/                     Home (rediseño), Fleet, Unit, Zone, Point, History, WorkOrders, InspectionForm, Data
 ├── tools/
 │   ├── probar-motor.ts            37 pruebas de aceptación (sección 4)
 │   ├── flujo.ts                   prueba en navegador: OT completa, máquina del tiempo, inspección, restaurar
@@ -689,15 +753,22 @@ Taller-en-enfasis-/
 |---|---|---|
 | Aceptación del motor (sección 3 del encargo, más seguridad y "sin mirar al futuro") | `npx tsx tools/probar-motor.ts` | **37 correctas, 0 fallas** |
 | Tabla y hallazgos a cualquier corte | `npx tsx tools/probar-motor.ts 2024-04-30` | Usada para revisar |
-| Flujo en el navegador | `npx tsx tools/flujo.ts [url]` | **14 de 14** en local y en el sitio publicado |
-| Capturas | `npx tsx tools/capturas.ts [url]` | 9 pantallas × 3 variantes, sin errores en consola ni desplazamiento horizontal |
+| Flujo en el navegador | `npx tsx tools/flujo.ts [url]` | `main`: **14 de 14** en local y en el sitio publicado. `rediseno-sobrio`: ver la nota abajo. |
+| Capturas | `npx tsx tools/capturas.ts [url] [rutas] [carpeta]` | `main`: 9 pantallas × 3 variantes. `rediseno-sobrio`: incluye Inicio (`#/`) y Qué reparar (`#/flota`). Sin errores en consola ni desplazamiento horizontal. |
+| Contraste del rediseño | Cálculo WCAG de los tokens | Todos los pares de texto ≥ 4,5:1 en claro y oscuro |
 | Escenarios de borde del revisor (8) | Script del revisor | Todos correctos después de las correcciones |
 | Tipos | `npx tsc --noEmit -p .` | Sin errores |
 | Build bajo una subruta como en Pages | `npm run build` | Cargan el Excel, las imágenes y las fuentes |
 | IA en el sitio publicado, sin clave | Prueba en el navegador | Informe, diagnóstico y foto responden |
 | Intermediario | `curl` | Responde desde la página; rechaza otros sitios (403) y modelos no permitidos |
 
-El flujo cubre:
+**Nota sobre `tools/flujo.ts` en `rediseno-sobrio`.**
+- Pasan las 10 primeras verificaciones: OT completa y máquina del tiempo al 2024-04-30.
+- Después el script se detiene porque busca el botón con el texto anterior, "Volver al presente", que ahora dice "Volver a hoy".
+- Con esa etiqueta corregida en una copia temporal, la prueba avanza hasta la inspección. Ahí falla porque escribe todos los campos en una sola página, y el formulario ahora es un asistente paso a paso.
+- **Falta actualizar el script.** El asistente de inspección y "Restaurar datos originales" no tienen todavía prueba automática en esta rama. La lógica no cambió: 37 de 37 en el motor.
+
+El flujo (en `main`) cubre:
 1. Crear la OT de AP-03, que queda Correctivo inmediato y BRD.
 2. Avanzarla por todos los estados y cerrarla con reparación: AP-03 queda Sin grieta, con 2 reparaciones, y la OT en Cerrada.
 3. La máquina del tiempo al 2024-04-30: Alerta, P1, Danger en 325 h (115 – 551) y Crear OT oculto.
@@ -773,6 +844,8 @@ npx playwright install chromium     # una vez, para flujo.ts y capturas.ts
 - Abrir https://jdvc2409.github.io/Taller-en-enfasis-/. Si en el ensayo se registraron inspecciones u OT de prueba: **Datos → Restaurar datos originales**.
 - Opcional: probar la IA con Datos → IA → "Probar conexión".
 - Tener a mano el enlace directo de la máquina del tiempo: `https://jdvc2409.github.io/Taller-en-enfasis-/#/punto/631-01%7CAP-03?corte=2024-04-30`
+- **Decidir qué versión presentar.** El link publicado (`main`) tiene la interfaz oscura original. Para presentar el rediseño hay que mezclar `rediseno-sobrio` en `main` antes del 10 de octubre, o presentarlo en local con `npm run dev`. La IA funciona en los dos casos, porque el intermediario acepta `localhost:5173`.
+- Si se presenta el rediseño, el recorrido puede empezar en **Inicio**: frase de estado, punto más urgente y 3D. Luego "Qué reparar" ocupa el lugar de "Flota" en los pasos siguientes. La máquina del tiempo se abre con "Ver el estado en otra fecha" y se cierra con "Volver a hoy".
 
 ### Recorrido sugerido (unos 10 minutos)
 
@@ -832,6 +905,13 @@ npx playwright install chromium     # una vez, para flujo.ts y capturas.ts
 | 52f410e | Intermediario de IA en Vercel |
 | cb254a4 | IA de la plataforma activa para todos |
 | eae5014 | README: IA mediante el intermediario |
+| 3e510db | Documento de contexto completo (este archivo) |
+| **Rama `rediseno-sobrio`** | |
+| 3deb385 | Rediseño sobrio: tokens claros, sin cuadrícula ni pulsos, Flota simplificada |
+| 6135ffe | Interfaz guiada: pantalla de inicio, guías por pantalla y glosario |
+| 80ba3e0 | Inspección paso a paso, 3D visible y menos texto |
+| b1cca05 | Modelo 3D detallado de la traílla |
+| (siguiente) | Actualización de la documentación para la rama |
 
 Resumen del proceso:
 1. Se revisaron el Excel y el Word contra el encargo.
@@ -842,11 +922,14 @@ Resumen del proceso:
 6. Se publicó en Pages.
 7. Se probó la IA real.
 8. Se integró el intermediario para que la IA funcione para cualquiera.
+9. Se rediseñó la interfaz en la rama `rediseno-sobrio`: tema claro sobrio, interfaz guiada, asistente de inspección y 3D detallado, sin tocar la lógica.
 
 ---
 
 ## 19. Pendientes y recomendaciones
 
+- [ ] **Decidir si se publica el rediseño:** revisar la rama `rediseno-sobrio` en local y, si se aprueba, mezclarla en `main` antes del 10 de octubre. El push a `main` publica.
+- [ ] **Actualizar `tools/flujo.ts` para la rama `rediseno-sobrio`:** cambiar el botón "Volver al presente" por "Volver a hoy" y recorrer el asistente de inspección paso por paso.
 - [ ] **Revocar la clave de Anthropic después del 10 de octubre de 2026**, o reemplazarla (sección 15).
 - [ ] Ensayar la exposición con el recorrido de la sección 16 y usar "Restaurar datos originales" antes de presentar.
 - [ ] Opcional: bajar el costo de la IA usando Sonnet 5 como modelo por defecto (Datos → IA, o `DEFAULT_SETTINGS.aiModel` en `catalog.ts`).
@@ -854,5 +937,5 @@ Resumen del proceso:
 - [ ] Aviso menor de GitHub Actions: las acciones v4 usan Node 20, que está en desuso. Hoy funcionan; más adelante conviene actualizar a las versiones nuevas de `actions/checkout`, `setup-node` y `upload-pages-artifact`.
 - **Advertencias de uso:**
   - Los tiempos y materiales de la OT son una **plantilla de referencia, no un procedimiento aprobado**.
-  - El modelo 3D es una representación simplificada.
+  - El modelo 3D es una representación simplificada, también en la versión detallada: no es un modelo CAD del fabricante.
   - Los pronósticos son estimaciones estadísticas sobre datos de campo: la decisión final es del ingeniero responsable.

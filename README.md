@@ -4,21 +4,33 @@ Plataforma web para pasar de la visión global de la flota al historial de una g
 
 **Link:** https://jdvc2409.github.io/Taller-en-enfasis-/
 
+> **Versión de la interfaz.** Este README describe la rama `rediseno-sobrio`: tema claro, pantalla de inicio, guías y asistente de inspección. El link publicado sale de `main` y mantiene la interfaz anterior (tema oscuro, sin pantalla de inicio) hasta que la rama se mezcle. Los cálculos son los mismos en las dos versiones.
+
 La plataforma carga sola el historial real (`631G_historial_grietas.xlsx`: equipo 631-01, 25 inspecciones, 12 puntos, 300 registros). No se inventaron equipos ni datos: funciona para N equipos y se muestra con los datos reales.
 
 ## Cómo usarla
 
+La navegación tiene cuatro niveles: Flota > Equipo > Zona > Punto. Barra superior: Inicio, Qué reparar, Historial, Órdenes de trabajo, Registrar inspección, Datos, **Ayuda** y el tema claro u oscuro.
+
 | Pantalla | Para qué sirve |
 |---|---|
-| **Flota** | "Qué atender primero" (puntos con grieta ordenados por prioridad), indicadores, reincidentes, matriz de riesgo 5×5 y hallazgos. |
-| **Equipo** | Modelo 3D con los puntos por estado, historia completa en mapa de calor (12 puntos × 25 inspecciones), todos los hallazgos e informe ejecutivo con IA. |
+| **Inicio** (`#/`) | El estado de la flota en una frase, el punto más urgente con su acción (abrirlo o crear su OT), cuatro tareas numeradas, la leyenda de colores y el modelo 3D de la traílla. |
+| **Qué reparar** (`#/flota`) | "Qué atender primero" (puntos con grieta ordenados por prioridad, con los reincidentes plegados), 4 indicadores, "Dónde están las grietas" en 3D, matriz de riesgo 5×5 y hallazgos. |
+| **Equipo** | Modelo 3D arriba, 4 indicadores (Crítico, Alerta, MTBF estructural e inspecciones a tiempo; el detalle completo, con MTBF de falla, OT abiertas y backlog, va en "Más indicadores"), historia completa en mapa de calor (12 puntos × 25 inspecciones), hallazgos e informe ejecutivo con IA. |
 | **Zona** | Esquema real con los puntos anclados; modo "Mover puntos"; criticidad de la zona; minigráficas. |
 | **Punto** | Gráfica de evolución contra horas o fecha con Caution, Danger, reparaciones y pronóstico con banda del 90 %; cuándo llega a Caution y Danger; fotos con análisis por IA; historial con incluir o excluir cada medida; OT del punto. |
-| **Máquina del tiempo** | Franja con una marca por inspección. Muestra la plataforma tal como estaba en cualquier fecha y, en gris, lo que se midió después, para comparar el pronóstico con la realidad. También se abre con un enlace: `#/punto/631-01%7CAP-03?corte=2024-04-30`. |
+| **Ver el estado en otra fecha** (máquina del tiempo) | Sección plegable en Qué reparar, Equipo, Zona y Punto: una franja con una marca por inspección. Muestra la plataforma tal como estaba en cualquier fecha. Con una fecha activa aparece el aviso "Estás viendo el {fecha}. Lo que se midió después aparece en gris" y el botón "Volver a hoy". También se abre con un enlace: `#/punto/631-01%7CAP-03?corte=2024-04-30`. |
 | **Órdenes de trabajo** | OT sugeridas, kanban (Notificación → OT abierta → Planeada → Programada → Ejecutada → Cerrada), documento con clasificación ISO 14224, operaciones, materiales y costo. Al cerrar con END final aceptado se registra la reparación (L = 0) y el punto empieza un ciclo nuevo. |
-| **Registrar inspección** | Réplica del formato de campo (encabezado, criterios, tabla por zona, esquema, observaciones). Se puede imprimir. |
+| **Registrar inspección** | Asistente paso a paso: Datos → Caja → Eyector → Apron → Revisar y guardar. Cada punto es una tarjeta con tres opciones ("Medí", "No pude revisarlo", "Se reparó") y la barra Atrás / Siguiente queda fija. Al imprimir sale el formato de campo completo. |
 | **Historial** | Filtros por zona, punto, estado y fecha. Exportar a Excel con el mismo formato de entrada (Léame, Historial y Puntos). |
 | **Datos** | Carga de Excel (agregar o reemplazar), revisión de calidad, criticidades, parámetros, límites, IA, imágenes, respaldo JSON y "Restaurar datos originales". |
+
+**Ayuda integrada.**
+- Arriba de cada pantalla hay una guía de una línea que dice para qué sirve; se puede cerrar.
+- El botón **Ayuda** abre la leyenda de estados y un glosario con búsqueda (22 términos, en `src/lib/glossary.ts`).
+- Las palabras técnicas (Danger, Caution, MTBF, prioridad, N/I…) muestran su significado al hacer clic.
+- Los hallazgos muestran solo el título y el detalle se abre al hacer clic.
+- En Punto, "¿Por qué?" y "Cómo se calculó" están plegados, y el historial muestra las últimas 6 medidas con un botón para ver todas.
 
 Todo lo que se edita se guarda en el navegador (IndexedDB).
 
@@ -29,8 +41,13 @@ npm install
 npm run dev                      # http://localhost:5173
 npx tsx tools/probar-motor.ts    # pruebas de aceptación del motor (37 verificaciones)
 npx tsx tools/probar-motor.ts 2024-04-30   # tabla de puntos y hallazgos a cualquier fecha de corte
-npx tsx tools/flujo.ts           # flujo en el navegador (requiere npx playwright install chromium)
+npx tsx tools/flujo.ts           # flujo en el navegador (requiere npx playwright install chromium); ver la nota abajo
 npx tsx tools/capturas.ts        # capturas de todas las pantallas en oscuro, claro y celular
+```
+
+> **Nota sobre `tools/flujo.ts` en la rama `rediseno-sobrio`.** La parte de OT y la de la máquina del tiempo pasan. El script se detiene después porque busca el botón con el texto anterior ("Volver al presente", que ahora dice "Volver a hoy") y escribe en el formulario de una sola página, que ahora es un asistente. Falta actualizar el script; la lógica no cambió y el motor sigue en 37 de 37.
+
+```bash
 ```
 
 ## Cómo se calcula cada cosa
@@ -145,4 +162,9 @@ Opcionalmente se puede usar una clave propia en Datos → IA, que queda solo en 
 
 ## Técnica
 
-Vite, React 18 y TypeScript estricto. SheetJS para leer y escribir Excel, Three.js para el 3D, zustand para el estado, idb-keyval para guardar en IndexedDB, y Barlow / Barlow Condensed empaquetadas con @fontsource. Las gráficas son SVG propio. Se despliega en GitHub Pages con GitHub Actions; las pruebas del motor corren antes de cada build.
+Vite, React 18 y TypeScript estricto. SheetJS para leer y escribir Excel, Three.js para el 3D (geometría detallada en `src/components/scraperModel.ts`, con materiales PBR y aristas tipo CAD), zustand para el estado, idb-keyval para guardar en IndexedDB y la tipografía Barlow empaquetada con @fontsource. Las gráficas son SVG propio.
+
+**Diseño (rama `rediseno-sobrio`).**
+- Tema claro por defecto y oscuro opcional, con tokens de color en `src/styles.css`. Todos los pares de texto tienen contraste ≥ 4,5:1.
+- Sin cuadrícula de fondo ni animaciones decorativas, una sola familia tipográfica y paneles con borde de 1 px.
+- Cada estado se muestra con color, forma e ícono. Se despliega en GitHub Pages con GitHub Actions; las pruebas del motor corren antes de cada build.
