@@ -200,7 +200,7 @@ function printOutput(title: string) {
   const w = window.open('', '_blank', 'width=820,height=900');
   if (!w) return;
   w.document.write(
-    `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${title}</title><style>body{font:11pt/1.5 Barlow,system-ui,sans-serif;max-width:720px;margin:32px auto;color:#111}h1,h2,h3{font-family:'Barlow Condensed',sans-serif}table{border-collapse:collapse}td,th{border:1px solid #999;padding:4px 8px}.n{color:#555;font-size:9pt;border-top:1px solid #999;margin-top:24px;padding-top:8px}</style></head><body><h1>${title}</h1>${el.innerHTML}<p class="n">Generado por IA en la plataforma Integridad Estructural. Verifique cifras antes de actuar.</p></body></html>`,
+    `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${title}</title><style>body{font:11pt/1.5 Barlow,system-ui,sans-serif;max-width:720px;margin:32px auto;color:#111}h1,h2,h3{font-family:Barlow,sans-serif;font-weight:600}table{border-collapse:collapse}td,th{border:1px solid #999;padding:4px 8px}.n{color:#555;font-size:9pt;border-top:1px solid #999;margin-top:24px;padding-top:8px}</style></head><body><h1>${title}</h1>${el.innerHTML}<p class="n">Generado por IA en la plataforma Integridad Estructural. Verifique cifras antes de actuar.</p></body></html>`,
   );
   w.document.close();
   w.focus();

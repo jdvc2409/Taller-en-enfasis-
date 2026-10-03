@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,6 +7,11 @@
     <meta name="description" content="Plataforma de integridad estructural de la flota de traíllas CAT 631G: tendencias de grietas, pronóstico, prioridades y órdenes de trabajo." />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>Integridad Estructural · Traílla 631G</title>
+    <script>
+      try {
+        if (localStorage.getItem('tema') === 'dark') document.documentElement.dataset.theme = 'dark';
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

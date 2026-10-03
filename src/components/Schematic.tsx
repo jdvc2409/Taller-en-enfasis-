@@ -5,7 +5,7 @@ import type { PointAnalysis } from '../lib/analysis';
 import { STATUS_LABEL } from '../lib/analysis';
 import { href, navigate } from '../router';
 import { useImage } from '../store';
-import { STATUS_COLOR } from './ui';
+import { StatusIcon } from './ui';
 
 interface Props {
   image: string;
@@ -51,7 +51,9 @@ export function Schematic({ image, points, selected, editing, onMove, compact }:
           if (compact && !sel && selected) {
             return (
               <div key={p.point.key} className={`mk ${p.status}`} style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%`, opacity: 0.55 }}>
-                <span className={`mk-dot ${p.status}`} style={{ background: STATUS_COLOR[p.status], width: 12, height: 12, margin: '-6px 0 0 -6px', borderWidth: 2 }} />
+                <span className="mk-dot small">
+                  <StatusIcon status={p.status} size={9} />
+                </span>
               </div>
             );
           }
@@ -62,8 +64,8 @@ export function Schematic({ image, points, selected, editing, onMove, compact }:
               style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }}
             >
               <button
-                className={`mk-dot ${p.status}`}
-                style={{ background: STATUS_COLOR[p.status], padding: 0 }}
+                className="mk-dot"
+                style={{ padding: 0 }}
                 aria-label={`${p.point.code}: ${STATUS_LABEL[p.status]}${p.length ? `, ${p.length} mm` : ''}`}
                 title={`${p.point.code} · ${p.point.description}\n${STATUS_LABEL[p.status]}${p.length != null ? ` · ${p.length} mm` : ''}`}
                 onPointerDown={(e) => {
@@ -72,7 +74,9 @@ export function Schematic({ image, points, selected, editing, onMove, compact }:
                   setDrag({ key: p.point.key, ...frac(e) });
                 }}
                 onClick={() => !editing && navigate(href.punto(p.point.key))}
-              />
+              >
+                <StatusIcon status={p.status} size={sel ? 15 : 13} />
+              </button>
               <span className="mk-lbl">
                 {p.point.code}
                 {p.length != null && p.length > 0 ? ` · ${p.length}` : ''}

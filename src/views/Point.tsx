@@ -130,7 +130,6 @@ export function PointView({ pointKey }: { pointKey: string }) {
 
   return (
     <div className="stack">
-      <Timeline unit={p.point.unit} />
       <div className="page-head">
         <div>
           <div className="crumbs">
@@ -146,7 +145,8 @@ export function PointView({ pointKey }: { pointKey: string }) {
             {p.hasCrack && <Prio p={p.priority} title={p.priorityName} />}
           </h1>
           <p>
-            {p.point.description} · Caution <b>{fmt(p.point.caution)} mm</b> · Danger <b>{fmt(p.point.danger)} mm</b>
+            {p.point.description} · Caution (inicio de alerta) <b>{fmt(p.point.caution)} mm</b> · Danger (límite de operación segura){' '}
+            <b>{fmt(p.point.danger)} mm</b>
           </p>
         </div>
         <div className="row">
@@ -164,6 +164,8 @@ export function PointView({ pointKey }: { pointKey: string }) {
             ))}
         </div>
       </div>
+
+      <Timeline unit={p.point.unit} />
 
       <div className={`notice ${tone}`}>
         <div>

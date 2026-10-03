@@ -13,7 +13,7 @@ function UnitCard({ u }: { u: UnitAnalysis }) {
     <a href={href.equipo(u.unitId)} className="panel" style={{ display: 'block', padding: '14px 16px', color: 'inherit', textDecoration: 'none' }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontFamily: 'var(--fuente-c)', fontWeight: 700, fontSize: 22 }}>{u.unitId}</div>
+          <div style={{ fontFamily: 'var(--fuente)', fontWeight: 600, fontSize: 22 }}>{u.unitId}</div>
           <div className="small muted">{u.model}</div>
         </div>
         <StatusPill status={u.worst} />
@@ -53,30 +53,33 @@ export function Fleet() {
   const units = fleet.units;
   const pts = fleet.points;
   const crit = pts.filter((p) => p.status === 'critico').length;
-  const alert = pts.filter((p) => p.status === 'alerta').length;
   const hc = units.reduce((a, u) => a + u.hoursWithCritical, 0);
   const hcc = units.reduce((a, u) => a + u.hoursWithCriticalConfirmed, 0);
   const u0 = units[0];
+  const onTime = units.reduce((a, u) => [a[0] + u.onTimeCount[0], a[1] + u.onTimeCount[1]], [0, 0]);
   const rec = pts.filter((p) => p.rcaRequired).sort((a, b) => b.kpis.repairs - a.kpis.repairs);
   const lastDate = units.map((u) => u.nowDate).filter(Boolean).sort().slice(-1)[0];
 
   return (
     <div className="stack">
-      <Timeline />
       <div className="page-head">
         <div>
           <h1>{db.fleet || 'Flota'}</h1>
-          <p>
-            {units.length} {units.length === 1 ? 'equipo' : 'equipos'} · {pts.length} puntos de inspección · {fleet.events.length} inspecciones ·
-            última el {fmtDate(lastDate)}
-            {crit > 0 && (
+          <p className="row" style={{ gap: 8, color: 'var(--tinta)', fontSize: 16 }}>
+            {crit > 0 ? (
               <>
-                {' · '}
-                <b style={{ color: 'var(--critico)' }}>
+                <StatusIcon status="critico" size={14} />
+                <b style={{ fontWeight: 600 }}>
                   {crit} {crit === 1 ? 'punto crítico' : 'puntos críticos'}: reparar antes de continuar operando
                 </b>
               </>
+            ) : (
+              <span>Ningún punto sobre el límite.</span>
             )}
+          </p>
+          <p className="small" style={{ marginTop: 2 }}>
+            {units.length} {units.length === 1 ? 'equipo' : 'equipos'} · {pts.length} puntos de inspección · {fleet.events.length} inspecciones · última el{' '}
+            {fmtDate(lastDate)}
           </p>
         </div>
         {!fleet.isPast && (
@@ -86,67 +89,78 @@ export function Fleet() {
         )}
       </div>
 
+      <Timeline />
+
       <KPIs
         items={[
-          { label: 'Puntos en Crítico', value: crit, tone: crit ? 'critico' : undefined, sub: crit ? 'Fuera de servicio hasta reparar' : 'Ninguno sobre Danger' },
-          { label: 'Puntos en Alerta', value: alert, tone: alert ? 'alerta' : undefined, sub: 'Programar reparación' },
+          {
+            label: 'Puntos en Crítico',
+            value: crit,
+            tone: crit ? 'critico' : undefined,
+            sub: 'Grieta sobre Danger (límite de operación segura) o con fractura reportada.',
+          },
           {
             label: 'Horas con punto crítico',
             value: fmt(hcc),
             unit: 'h',
-            sub: `confirmadas; hasta ${fmt(hc)} h hasta reparar o al corte`,
-            title: 'Confirmadas: de la primera a la última medida crítica. Máximas: hasta la reparación o el corte.',
+            sub: `Operadas con al menos un punto crítico, confirmadas por medición. Hasta ${fmt(hc)} h contando hasta la reparación.`,
           },
           {
             label: 'MTBF estructural',
             value: fmt(u0?.mtbf),
             unit: 'h',
-            sub: `${u0?.repairs ?? 0} reparaciones; MTBF de falla ${fmt(u0?.mtbfFailure)} h`,
-            title: 'Horas observadas / reparaciones (tiempo medio entre reparaciones). MTBF de falla: horas observadas / episodios sobre Danger o fracturas.',
+            sub: `MTBF (tiempo medio entre reparaciones): ${u0?.repairs ?? 0} reparaciones en ${fmt(u0?.observedHours)} h.`,
           },
           {
-            label: 'OT abiertas',
-            value: fleet.backlog.open,
-            sub: `backlog ${fmt(fleet.backlog.hh, 1)} h-h = ${fmt(fleet.backlog.weeks, 1)} semanas`,
+            label: 'Inspecciones a tiempo',
+            value: onTime[1] ? fmt((onTime[0] / onTime[1]) * 100) : '—',
+            unit: '%',
+            sub: `${onTime[0]} de ${onTime[1]} intervalos dentro del objetivo de ${fmt(db.settings.targetInterval)} h.`,
           },
         ]}
       />
 
+      <Panel
+        title="Qué atender primero"
+        sub="Puntos con grieta, ordenados por prioridad (urgencia × consecuencia; P1 es inmediata). El tiempo a Danger va del escenario pesimista al central."
+        tight
+      >
+        <Ranking fleet={fleet} rows={fleet.ranking} />
+        {rec.length > 0 && (
+          <div style={{ padding: '14px 18px', borderTop: '1px solid var(--linea)' }}>
+            <h3 style={{ marginBottom: 4 }}>Reincidentes: análisis de causa raíz pendiente</h3>
+            <p className="small muted" style={{ margin: '0 0 10px' }}>
+              Puntos reparados dos o más veces, o que ya operaron sobre Danger. Volver a soldar no elimina la causa.
+            </p>
+            <div className="row" style={{ gap: 6 }}>
+              {rec.map((p) => (
+                <a key={p.point.key} className="pill" href={href.punto(p.point.key)} title={p.point.description}>
+                  <b style={{ fontWeight: 600 }}>{p.point.code}</b>
+                  <span className="muted">
+                    {p.kpis.repairs} {p.kpis.repairs === 1 ? 'reparación' : 'reparaciones'}
+                    {p.kpis.reappearMean != null ? ` · reaparece a las ${fmt(p.kpis.reappearMean)} h` : ''}
+                    {!p.recurrent ? ' · operó sobre Danger' : ''}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+      </Panel>
+
       <div className="grid-main">
-        <div className="stack">
-          <Panel
-            title="Qué atender primero"
-            sub="Puntos con grieta activa, ordenados por prioridad = urgencia × consecuencia. El tiempo a Danger va de pesimista a central."
-            tight
-          >
-            <Ranking fleet={fleet} rows={fleet.ranking} />
-            {rec.length > 0 && (
-              <div style={{ padding: '14px 18px', borderTop: '1px solid var(--linea)' }}>
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>Reincidentes: análisis de causa raíz pendiente</div>
-                <div className="row" style={{ gap: 6 }}>
-                  {rec.map((p) => (
-                    <a key={p.point.key} className="pill" href={href.punto(p.point.key)} title={p.point.description}>
-                      <b style={{ fontFamily: 'var(--fuente-c)', fontSize: 15 }}>{p.point.code}</b>
-                      <span className="muted">
-                        {p.kpis.repairs} rep.
-                        {p.kpis.reappearMean != null ? ` · reaparece ${fmt(p.kpis.reappearMean)} h` : ''}
-                        {!p.recurrent ? ' · operó sobre Danger' : ''}
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Panel>
-          <Panel title="Hallazgos principales" sub="Generados a partir de los datos, ordenados por severidad." actions={u0 && <a href={href.equipo(u0.unitId) + '#hallazgos'}>Ver todos</a>}>
-            <Findings items={fleet.findings} limit={5} />
-          </Panel>
-        </div>
+        <Panel
+          title="Hallazgos principales"
+          sub="Generados a partir de los datos, del más grave al menos grave."
+          actions={u0 && <a href={href.equipo(u0.unitId) + '#hallazgos'}>Ver todos los hallazgos</a>}
+        >
+          <Findings items={fleet.findings} limit={5} />
+        </Panel>
         <div className="stack">
           {units.map((u) => (
             <UnitCard key={u.unitId} u={u} />
           ))}
-          <Panel title="Matriz de riesgo" sub="Conteo de puntos por celda">
+          <Panel title="Matriz de riesgo" sub="Cantidad de puntos según urgencia (probabilidad) y consecuencia.">
             <RiskMatrix points={pts} />
           </Panel>
         </div>

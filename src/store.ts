@@ -64,7 +64,7 @@ function readTheme(): Theme {
   } catch {
     /* almacenamiento bloqueado */
   }
-  return 'dark';
+  return 'light';
 }
 
 export const useStore = create<State>((setState, getState) => ({

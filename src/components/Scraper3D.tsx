@@ -183,7 +183,6 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
     box(0.4, 0.6, 1.2, -7.9, 1.2, 0, dark);
 
     // Puntos
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const sphereG = geo(new THREE.SphereGeometry(0.17, 20, 14));
     const haloG = geo(new THREE.SphereGeometry(0.17, 20, 14));
     const markers: { mesh: THREE.Mesh; halo?: THREE.Mesh; p: PointAnalysis; label: HTMLDivElement }[] = [];
@@ -203,7 +202,7 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
         disposables.push(hm);
         halo = new THREE.Mesh(haloG, hm);
         halo.position.copy(mesh.position);
-        halo.scale.setScalar(1.9);
+        halo.scale.setScalar(1.7);
         scene.add(halo);
       }
       const label = document.createElement('div');
@@ -275,7 +274,7 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
     scene.traverse((o) => {
       if ((o as THREE.Mesh).isMesh && !markers.some((m) => m.mesh === o || m.halo === o)) solids.push(o);
     });
-    const tick = (t: number) => {
+    const tick = () => {
       controls.update();
       // Cada pocos cuadros, las etiquetas de puntos tapados por la estructura se atenúan.
       if (frame++ % 6 === 0) {
@@ -292,11 +291,6 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
         }
       }
       for (const m of markers) {
-        if (m.halo && !reduce) {
-          const k = 1.6 + 0.6 * (0.5 + 0.5 * Math.sin(t / (m.p.status === 'critico' ? 260 : 420)));
-          m.halo.scale.setScalar(k);
-          (m.halo.material as THREE.MeshBasicMaterial).opacity = 0.32 - (k - 1.6) * 0.3;
-        }
         v.copy(m.mesh.position).project(camera);
         const x = (v.x * 0.5 + 0.5) * el.clientWidth;
         const y = (-v.y * 0.5 + 0.5) * height;
@@ -351,7 +345,7 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
               pointerEvents: 'none',
             }}
           >
-            <div style={{ fontFamily: 'var(--fuente-c)', fontWeight: 700, fontSize: 16 }}>
+            <div style={{ fontFamily: 'var(--fuente)', fontWeight: 600, fontSize: 16 }}>
               {tip.p.point.code} · {STATUS_LABEL[tip.p.status]}
             </div>
             <div className="muted">{tip.p.point.description}</div>

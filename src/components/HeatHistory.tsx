@@ -7,10 +7,17 @@ import type { Status } from '../types';
 import { StatusIcon, fmtDate, fmtDateShort, fmtMM } from './ui';
 
 const bg: Record<Status, string> = {
-  critico: 'color-mix(in srgb, var(--critico) 62%, var(--sup))',
-  alerta: 'color-mix(in srgb, var(--alerta) 50%, var(--sup))',
-  normal: 'color-mix(in srgb, var(--normal) 38%, var(--sup))',
-  sin: 'var(--sup3)',
+  critico: 'var(--critico-fondo)',
+  alerta: 'var(--alerta-fondo)',
+  normal: 'var(--normal-fondo)',
+  sin: 'var(--sup2)',
+  ni: 'transparent',
+};
+const edge: Record<Status, string> = {
+  critico: 'var(--critico)',
+  alerta: 'var(--alerta)',
+  normal: 'var(--normal)',
+  sin: 'var(--linea)',
   ni: 'transparent',
 };
 
@@ -77,7 +84,7 @@ function ZoneRows({ name, points, events, asOf }: { name: string; points: UnitAn
       {points.map((p) => (
         <tr key={p.point.key}>
           <td style={{ paddingRight: 8, whiteSpace: 'nowrap' }}>
-            <a href={href.punto(p.point.key)} style={{ fontFamily: 'var(--fuente-c)', fontWeight: 600, fontSize: 14.5 }}>
+            <a href={href.punto(p.point.key)} style={{ fontFamily: 'var(--fuente)', fontWeight: 600, fontSize: 14.5 }}>
               {p.point.code}
             </a>
           </td>
@@ -103,6 +110,7 @@ function ZoneRows({ name, points, events, asOf }: { name: string; points: UnitAn
                   cursor: 'pointer',
                   borderRadius: 3,
                   background: ni ? 'repeating-linear-gradient(135deg, var(--sup2) 0 3px, var(--linea) 3px 4.5px)' : bg[st],
+                  border: `1px solid ${ni ? 'var(--linea)' : edge[st]}`,
                   color: st === 'sin' ? 'var(--apagado)' : 'var(--tinta)',
                   fontWeight: s?.repaired ? 700 : 500,
                   outline: s?.repaired ? '1.5px solid var(--acento)' : s?.excluded ? '1.5px dashed var(--tinta2)' : undefined,
@@ -132,7 +140,7 @@ function Legend() {
     <div className="row small muted" style={{ gap: 16, marginTop: 12 }}>
       {(['critico', 'alerta', 'normal'] as Status[]).map((s) => (
         <span key={s} className="row" style={{ gap: 6 }}>
-          <span style={{ width: 22, height: 16, borderRadius: 3, background: bg[s], display: 'inline-grid', placeItems: 'center' }}>
+          <span style={{ width: 22, height: 16, borderRadius: 3, background: bg[s], border: `1px solid ${edge[s]}`, display: 'inline-grid', placeItems: 'center' }}>
             <StatusIcon status={s} size={9} />
           </span>
           {STATUS_LABEL[s]}

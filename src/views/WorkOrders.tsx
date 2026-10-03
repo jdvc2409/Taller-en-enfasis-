@@ -101,7 +101,7 @@ function WOBoard() {
                         <b>{w.id}</b>
                         <Prio p={w.priority} />
                       </div>
-                      <div style={{ fontFamily: 'var(--fuente-c)', fontWeight: 600, fontSize: 16, marginTop: 4 }}>{p?.point.code ?? w.pointKey}</div>
+                      <div style={{ fontFamily: 'var(--fuente)', fontWeight: 600, fontSize: 16, marginTop: 4 }}>{p?.point.code ?? w.pointKey}</div>
                       <div className="tiny muted">{w.maintenanceType}</div>
                       <div className="tiny" style={{ marginTop: 6, color: late ? 'var(--critico)' : 'var(--tinta2)' }}>
                         Límite {fmtDate(w.dueDate)} · {fmt(woManHours(w), 1)} h-h
@@ -401,7 +401,7 @@ function WODoc({ id }: { id: string }) {
               <input type="number" min={0} value={wo.otherCost ?? 0} disabled={ro} onChange={(e) => set({ otherCost: Math.max(0, num(e.target.value)) })} style={{ width: 90, textAlign: 'right' }} /> USD
             </dd>
             <dt style={{ fontWeight: 600, color: 'var(--tinta)' }}>Costo total de la OT</dt>
-            <dd style={{ fontFamily: 'var(--fuente-c)', fontSize: 24, fontWeight: 600 }}>{fmt(hh * wo.rate + (wo.otherCost ?? 0))} USD</dd>
+            <dd style={{ fontFamily: 'var(--fuente)', fontSize: 24, fontWeight: 600 }}>{fmt(hh * wo.rate + (wo.otherCost ?? 0))} USD</dd>
           </dl>
           <p className="tiny muted" style={{ margin: '10px 0 0' }}>
             Base para el CMF (costo de mantenimiento / facturación) y el CPMV (costo de mantenimiento / valor de reposición).

@@ -1,5 +1,5 @@
 // Máquina del tiempo: una marca por inspección, coloreada con el peor estado medido ese día.
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { analyze, STATUS_RANK, worst } from '../lib/analysis';
 import type { Status } from '../types';
@@ -22,6 +22,11 @@ export function Timeline({ unit }: { unit?: string }) {
     }
     return [...byDate.entries()].map(([date, ss]) => ({ date, worst: worst(ss) })).sort((a, b) => a.date.localeCompare(b.date));
   }, [db, unit]);
+
+  const [open, setOpen] = useState(!!asOf);
+  useEffect(() => {
+    if (asOf) setOpen(true);
+  }, [asOf]);
 
   if (marks.length < 2) return null;
   const t0 = Date.parse(marks[0].date);
@@ -48,24 +53,32 @@ export function Timeline({ unit }: { unit?: string }) {
   const past = !!asOf;
 
   return (
-    <section className={`panel tm${past ? ' past' : ''}`} aria-label="Máquina del tiempo">
+    <div className="tm stack" style={{ gap: 10 }}>
+      {past && (
+        <div className="notice info" role="status">
+          <div className="row" style={{ justifyContent: 'space-between', width: '100%' }}>
+            <span>
+              Estás viendo el <b>{fmtDate(asOf)}</b>. Lo que se midió después aparece en gris.
+            </span>
+            <button className="btn sm" onClick={() => setAsOf(null)}>
+              Volver a hoy
+            </button>
+          </div>
+        </div>
+      )}
+      <details className="panel tm-box" open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+        <summary className="tm-summary">
+          <span>Ver el estado en otra fecha</span>
+          <span className="small muted">
+            {past ? `Fecha elegida: ${fmtDate(asOf)}` : `Hoy: última inspección del ${fmtDate(last)}`}
+          </span>
+        </summary>
+        <div className="tm-body">
       <div className="tm-top">
         <div className="tm-title">
-          {past ? (
-            <>
-              <span style={{ color: 'var(--acento)', fontWeight: 600 }}>Máquina del tiempo</span>
-              <span>
-                Viendo la plataforma como estaba el <b>{fmtDate(asOf)}</b>
-              </span>
-            </>
-          ) : (
-            <>
-              <span style={{ fontWeight: 600 }}>Máquina del tiempo</span>
-              <span className="muted">
-                Presente: última inspección el {fmtDate(last)}. Arrastre o haga clic para ver un corte anterior.
-              </span>
-            </>
-          )}
+          <span className="small muted">
+            Elija una inspección para ver la plataforma como estaba ese día. Use las flechas o arrastre sobre la franja.
+          </span>
         </div>
         <div className="row" style={{ gap: 6 }}>
           <button className="btn sm icon" onClick={() => go(idx - 1)} disabled={idx === 0} aria-label="Inspección anterior" title="Inspección anterior">
@@ -76,9 +89,6 @@ export function Timeline({ unit }: { unit?: string }) {
           </span>
           <button className="btn sm icon" onClick={() => go(idx + 1)} disabled={idx === marks.length - 1} aria-label="Inspección siguiente" title="Inspección siguiente">
             <Icon name="right" />
-          </button>
-          <button className={`btn sm${past ? ' primary' : ''}`} onClick={() => setAsOf(null)} disabled={!past}>
-            Volver al presente
           </button>
         </div>
       </div>
@@ -135,6 +145,8 @@ export function Timeline({ unit }: { unit?: string }) {
           })}
         </div>
       </div>
-    </section>
+        </div>
+      </details>
+    </div>
   );
 }

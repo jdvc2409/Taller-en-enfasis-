@@ -22,8 +22,8 @@ export function StatusIcon({ status, size = 12 }: { status: Status; size?: numbe
       {status === 'critico' && (
         <>
           <path d="M6 0.3 11.7 6 6 11.7 0.3 6Z" fill={c} />
-          <rect x="5.25" y="2.9" width="1.5" height="4.2" rx=".4" fill="#fff" />
-          <rect x="5.25" y="7.9" width="1.5" height="1.5" rx=".4" fill="#fff" />
+          <rect x="5.25" y="2.9" width="1.5" height="4.2" rx=".4" fill="var(--sobre-critico)" />
+          <rect x="5.25" y="7.9" width="1.5" height="1.5" rx=".4" fill="var(--sobre-critico)" />
         </>
       )}
       {status === 'sin' && <circle cx="6" cy="6" r="4.4" fill="none" stroke={c} strokeWidth="1.6" />}
@@ -55,8 +55,8 @@ export function LimitBar({ L, caution, danger, status, width }: { L: number | nu
   const pct = (v: number) => `${Math.min((v / max) * 100, 100)}%`;
   return (
     <div className="lbar" style={{ width }} role="img" aria-label={`${L ?? 'N/I'} mm; Caution ${caution}, Danger ${danger}`}>
-      <div className="lbar-zone" style={{ left: pct(caution), width: `calc(${pct(danger)} - ${pct(caution)})`, background: 'color-mix(in srgb, var(--alerta) 16%, transparent)' }} />
-      <div className="lbar-zone" style={{ left: pct(danger), right: 0, background: 'color-mix(in srgb, var(--critico) 18%, transparent)' }} />
+      <div className="lbar-zone" style={{ left: pct(caution), width: `calc(${pct(danger)} - ${pct(caution)})`, background: 'var(--alerta-fondo)' }} />
+      <div className="lbar-zone" style={{ left: pct(danger), right: 0, background: 'var(--critico-fondo)' }} />
       {L != null && L > 0 && <div className="lbar-fill" style={{ width: pct(L), background: STATUS_COLOR[status] }} />}
       <div className="lbar-tick" style={{ left: pct(caution), background: 'var(--alerta)' }} />
       <div className="lbar-tick" style={{ left: pct(danger), background: 'var(--critico)' }} />

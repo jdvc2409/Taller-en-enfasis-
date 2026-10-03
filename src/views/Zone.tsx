@@ -77,7 +77,6 @@ export function ZoneView({ unitId, zoneId }: { unitId: string; zoneId: string })
 
   return (
     <div className="stack">
-      <Timeline unit={unitId} />
       <div className="page-head">
         <div>
           <div className="crumbs">
@@ -93,6 +92,8 @@ export function ZoneView({ unitId, zoneId }: { unitId: string; zoneId: string })
           </p>
         </div>
       </div>
+
+      <Timeline unit={unitId} />
 
       <div className="grid-main">
         <Panel

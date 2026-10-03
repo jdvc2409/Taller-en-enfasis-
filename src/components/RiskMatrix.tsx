@@ -2,13 +2,7 @@
 import type { PointAnalysis } from '../lib/analysis';
 
 const tone = (score: number) =>
-  score >= 20
-    ? 'color-mix(in srgb, var(--critico) 34%, var(--sup))'
-    : score >= 12
-      ? 'color-mix(in srgb, var(--critico) 15%, var(--sup))'
-      : score >= 6
-        ? 'color-mix(in srgb, var(--alerta) 15%, var(--sup))'
-        : 'var(--sup2)';
+  score >= 20 ? 'var(--critico-fondo)' : score >= 12 ? 'var(--alerta-fondo)' : score >= 6 ? 'var(--sup2)' : 'var(--sup)';
 
 export function RiskMatrix({ points }: { points: PointAnalysis[] }) {
   const cell = (u: number, c: number) => points.filter((p) => p.urgency === u && p.consequence === c);
@@ -34,11 +28,11 @@ export function RiskMatrix({ points }: { points: PointAnalysis[] }) {
                     borderRadius: 4,
                     display: 'grid',
                     placeItems: 'center',
-                    fontFamily: 'var(--fuente-c)',
+                    fontFamily: 'var(--fuente)',
                     fontWeight: 600,
                     fontSize: 17,
                     color: crack.length ? 'var(--tinta)' : 'var(--apagado)',
-                    border: crack.length ? '1.5px solid var(--tinta2)' : '1px solid transparent',
+                    border: crack.length ? '2px solid var(--tinta2)' : '1px solid var(--linea)',
                   }}
                 >
                   {ps.length || ''}

@@ -25,7 +25,6 @@ export function Unit({ unitId }: { unitId: string }) {
 
   return (
     <div className="stack">
-      <Timeline unit={unitId} />
       <div className="page-head">
         <div>
           <div className="crumbs">
@@ -51,6 +50,8 @@ export function Unit({ unitId }: { unitId: string }) {
         </div>
       </div>
 
+      <Timeline unit={unitId} />
+
       <KPIs
         items={[
           { label: 'Crítico', value: u.counts.critico, tone: u.counts.critico ? 'critico' : undefined },
@@ -61,7 +62,7 @@ export function Unit({ unitId }: { unitId: string }) {
             label: 'MTBF estructural',
             value: fmt(u.mtbf),
             unit: 'h',
-            sub: `${u.repairs} reparaciones en ${fmt(u.observedHours)} h`,
+            sub: `Tiempo medio entre reparaciones: ${u.repairs} en ${fmt(u.observedHours)} h`,
             title: 'Tiempo medio entre reparaciones = horas observadas / reparaciones.',
           },
           {
@@ -76,6 +77,11 @@ export function Unit({ unitId }: { unitId: string }) {
             value: fmt(u.hoursWithCriticalConfirmed),
             unit: 'h',
             sub: `confirmadas; hasta ${fmt(u.hoursWithCritical)} h`,
+          },
+          {
+            label: 'OT abiertas',
+            value: fleet.backlog.open,
+            sub: `Backlog (trabajo pendiente) ${fmt(fleet.backlog.hh, 1)} h-h = ${fmt(fleet.backlog.weeks, 1)} semanas`,
           },
           {
             label: 'Inspecciones a tiempo',

@@ -354,7 +354,7 @@ function Tip({ h, W }: { h: { x: number; y: number; s: SeriesItem; after: boolea
         {fmtDate(s.date)} · {fmt(s.hours, 1)} h
       </div>
       <div className="tab" style={{ marginTop: 2 }}>
-        <b style={{ fontFamily: 'var(--fuente-c)', fontSize: 18 }}>{s.length} mm</b>{' '}
+        <b style={{ fontFamily: 'var(--fuente)', fontSize: 18 }}>{s.length} mm</b>{' '}
         <span className="muted">· {s.repaired ? 'Reparada' : STATUS_LABEL[s.status]}</span>
       </div>
       {h.after && <div className="tiny" style={{ color: 'var(--acento)' }}>Medida posterior al corte</div>}
