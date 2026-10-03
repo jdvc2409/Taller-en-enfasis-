@@ -13,7 +13,7 @@ export type Route =
   | { name: 'no-encontrada'; path: string };
 
 export function parseHash(hash: string): Route {
-  const path = decodeURIComponent(hash.replace(/^#/, '')) || '/';
+  const path = decodeURIComponent(hash.replace(/^#/, '').split('?')[0]) || '/';
   const parts = path.split('/').filter(Boolean);
   if (!parts.length) return { name: 'flota' };
   const [a, b, c, d] = parts;
@@ -37,6 +37,13 @@ export const href = {
   inspeccion: (u: string) => `#/inspeccion/${encodeURIComponent(u)}`,
   datos: () => '#/datos',
 };
+
+/** Fecha de corte opcional en el enlace: #/punto/...?corte=2024-04-30 */
+export function corteFromHash(hash = location.hash): string | null {
+  const q = hash.split('?')[1];
+  const c = q ? new URLSearchParams(q).get('corte') : null;
+  return c && /^\d{4}-\d{2}-\d{2}$/.test(c) ? c : null;
+}
 
 export function navigate(h: string) {
   if (location.hash !== h) location.hash = h;

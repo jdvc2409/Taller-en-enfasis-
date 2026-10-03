@@ -1,6 +1,6 @@
 import { Suspense, useEffect } from 'react';
 import { useStore } from './store';
-import { href, useRoute, type Route } from './router';
+import { corteFromHash, href, useRoute, type Route } from './router';
 import { Icon, Logo } from './components/ui';
 import { Fleet } from './views/Fleet';
 import { Unit } from './views/Unit';
@@ -86,6 +86,13 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // Un enlace con ?corte=aaaa-mm-dd abre la máquina del tiempo en esa fecha.
+  const setAsOf = useStore((s) => s.setAsOf);
+  useEffect(() => {
+    const c = corteFromHash();
+    if (c && db) setAsOf(c);
+  }, [route, db === null, setAsOf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>

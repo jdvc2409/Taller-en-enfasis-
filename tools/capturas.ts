@@ -13,6 +13,7 @@ const ROUTES: [string, string][] = [
   ['equipo', '#/equipo/631-01'],
   ['zona-ap', '#/equipo/631-01/zona/AP'],
   ['punto-ap03', '#/punto/631-01%7CAP-03'],
+  ['punto-ap03-corte', '#/punto/631-01%7CAP-03?corte=2024-04-30'],
   ['historial', '#/historial'],
   ['ot', '#/ot'],
   ['inspeccion', '#/inspeccion/631-01'],

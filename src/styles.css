@@ -1069,3 +1069,88 @@ a.pill:hover {
   border-top: 1px solid var(--linea);
   margin: 14px 0;
 }
+
+/* ---------------------------------------------------------------- marcadores sobre esquemas */
+
+.mk {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.mk-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  border: 2.5px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+  display: grid;
+  place-items: center;
+}
+.mk-dot.sin {
+  background: #fff !important;
+  border-color: var(--sin);
+}
+.mk-dot.ni {
+  background: #fff !important;
+  border: 2px dashed #6d7a84;
+}
+.mk.sel .mk-dot {
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  box-shadow: 0 0 0 3px var(--acento);
+}
+.mk.critico .mk-dot::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 2px solid var(--critico);
+  animation: pulso 1.6s ease-out infinite;
+}
+@keyframes pulso {
+  from {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+.mk-lbl {
+  position: absolute;
+  left: 14px;
+  top: -11px;
+  white-space: nowrap;
+  font: 600 12.5px var(--fuente-c);
+  color: #17232c;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #b9c3ca;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.mk.left .mk-lbl {
+  left: auto;
+  right: 14px;
+}
+.schem.editing {
+  cursor: crosshair;
+  outline: 2px dashed var(--acento);
+  outline-offset: 2px;
+}
+.schem.editing .mk-dot {
+  cursor: grab;
+}
+svg text.halo {
+  paint-order: stroke;
+  stroke: var(--sup);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
