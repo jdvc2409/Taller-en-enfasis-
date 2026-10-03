@@ -129,7 +129,13 @@ El mensaje de sistema obliga a respetar la seguridad:
 - Tratar como real una medida dudosa que indique peor condición.
 - No presentar procedimientos como aprobados.
 
-Cada panel muestra "Ver la información que se envía". **La clave de API nunca está en el código ni en el repositorio:** se pega en Datos → IA y queda solo en ese navegador; el respaldo JSON no la incluye. Sin clave, el panel ofrece "Copiar para pegar en Claude". Modelo por defecto: `claude-opus-5-5`; también `claude-sonnet-5` y `claude-haiku-4-5`.
+Cada panel muestra "Ver la información que se envía". **Cualquier persona que abra el link puede usar la IA sin pegar una clave.** Las consultas pasan por un intermediario en Vercel (`proxy/`, desplegado en `https://integridad-estructural-ia.vercel.app`) que guarda la clave de Anthropic como secreto del servidor. **La clave nunca está en la página, en el código ni en el repositorio.** El intermediario:
+- Solo acepta consultas desde la página publicada.
+- Solo permite los modelos de la app y una pregunta por consulta.
+- Usa siempre el mensaje de sistema de la plataforma.
+- Admite como máximo 25 consultas por persona cada 10 minutos.
+
+Opcionalmente se puede usar una clave propia en Datos → IA, que queda solo en ese navegador. Cada panel ofrece también "Copiar para Claude". Modelo por defecto: `claude-opus-5-5`; también `claude-sonnet-5` y `claude-haiku-4-5`.
 
 ## Advertencias
 
