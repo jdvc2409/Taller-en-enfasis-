@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { buildScraper } from './scraperModel';
 import type { PointAnalysis } from '../lib/analysis';
 import { STATUS_LABEL } from '../lib/analysis';
 import type { Status } from '../types';
 
-const HEX: Record<Status, number> = { critico: 0xb3261e, alerta: 0xd98e04, normal: 0x087a6f, sin: 0xe6ecef, ni: 0x7d8892 };
+const HEX: Record<Status, number> = { critico: 0xd2261c, alerta: 0xff7a00, normal: 0x0b9c8c, sin: 0xf2f4f6, ni: 0x8a949c };
 
 interface Props {
   points: PointAnalysis[];
@@ -45,25 +47,30 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
     renderer.domElement.style.touchAction = 'none';
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(32, el.clientWidth / height, 0.1, 200);
-    camera.position.set(4.2, 5.6, 11.2);
+    const camera = new THREE.PerspectiveCamera(34, el.clientWidth / height, 0.1, 200);
+    camera.position.set(6.5, 5.2, 12.5);
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(-1.2, 1.5, 0);
+    controls.target.set(0.2, 1.6, 0);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.minDistance = 7;
-    controls.maxDistance = 32;
+    controls.maxDistance = 40;
     controls.maxPolarAngle = Math.PI * 0.49;
     controls.minPolarAngle = Math.PI * 0.08;
+    // Encuadre: en paneles angostos la cámara se aleja para que quepa la traílla completa.
+    const baseOffset = camera.position.clone().sub(controls.target);
+    const fit = (aspect: number) => {
+      const k = Math.max(1, Math.pow(2.3 / aspect, 0.85));
+      camera.position.copy(controls.target).add(baseOffset.clone().multiplyScalar(k));
+    };
+    fit(el.clientWidth / height);
     controls.update();
 
-    scene.add(new THREE.HemisphereLight(0xdfe8ef, 0x2a3036, 1.6));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
-    sun.position.set(6, 12, 8);
-    scene.add(sun);
-    const fill = new THREE.DirectionalLight(0xbcd2e6, 0.6);
-    fill.position.set(-8, 5, -6);
-    scene.add(fill);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.92;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const disposables: { dispose: () => void }[] = [];
     const mat = (color: number, extra: THREE.MeshStandardMaterialParameters = {}) => {
@@ -73,141 +80,84 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
     };
     const geo = <G extends THREE.BufferGeometry>(g: G) => (disposables.push(g), g);
 
-    const steel = mat(0x6f7b84);
-    const dark = mat(0x3a4249);
-    const tire = mat(0x1c2024, { roughness: 0.9, metalness: 0 });
-    const hoodM = mat(0xc8b06a);
-    const glass = mat(0x9fc3dd, { transparent: true, opacity: 0.32, roughness: 0.1, metalness: 0.1 });
-    const zoneMat: Record<string, THREE.MeshStandardMaterial> = {
-      BW: mat(0x7c8892, { side: THREE.DoubleSide }),
-      AP: mat(0x86929b, { side: THREE.DoubleSide }),
-      EY: mat(0x66737c, { side: THREE.DoubleSide }),
-    };
-    const groups: Record<string, THREE.Group> = { BW: new THREE.Group(), AP: new THREE.Group(), EY: new THREE.Group() };
-    Object.values(groups).forEach((g) => scene.add(g));
-    const root = new THREE.Group();
-    scene.add(root);
+    // Luz de estudio: entorno para reflejos, sol con sombras suaves y relleno frío.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envTex;
+    scene.environmentIntensity = 0.65;
+    disposables.push(envTex, pmrem);
+    scene.add(new THREE.HemisphereLight(0xeef3f7, 0x3a3f44, 0.35));
+    const sun = new THREE.DirectionalLight(0xfff4e6, 2.7);
+    sun.position.set(7, 14, 9);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -11;
+    sun.shadow.camera.right = 11;
+    sun.shadow.camera.top = 9;
+    sun.shadow.camera.bottom = -9;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 40;
+    sun.shadow.bias = -0.0004;
+    sun.shadow.radius = 4;
+    scene.add(sun);
+    const fill = new THREE.DirectionalLight(0xc9dcec, 0.7);
+    fill.position.set(-9, 6, -7);
+    scene.add(fill);
 
-    const box = (w: number, h: number, d: number, x: number, y: number, z: number, m: THREE.Material, parent: THREE.Object3D = root) => {
-      const mesh = new THREE.Mesh(geo(new THREE.BoxGeometry(w, h, d)), m);
-      mesh.position.set(x, y, z);
-      parent.add(mesh);
-      return mesh;
-    };
-    const tube = (a: number[], b: number[], r: number, m: THREE.Material, parent: THREE.Object3D = root) => {
-      const va = new THREE.Vector3(...a);
-      const vb = new THREE.Vector3(...b);
-      const len = va.distanceTo(vb);
-      const mesh = new THREE.Mesh(geo(new THREE.CylinderGeometry(r, r, len, 14)), m);
-      mesh.position.copy(va).add(vb).multiplyScalar(0.5);
-      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), vb.clone().sub(va).normalize());
-      parent.add(mesh);
-      return mesh;
-    };
-    const wheel = (x: number, z: number, r: number, w: number) => {
-      const t = new THREE.Mesh(geo(new THREE.CylinderGeometry(r, r, w, 32)), tire);
-      t.rotation.x = Math.PI / 2;
-      t.position.set(x, r, z);
-      root.add(t);
-      const hub = new THREE.Mesh(geo(new THREE.CylinderGeometry(r * 0.45, r * 0.45, w + 0.04, 20)), hoodM);
-      hub.rotation.x = Math.PI / 2;
-      hub.position.set(x, r, z);
-      root.add(hub);
-    };
-
-    // Suelo
-    const grid = new THREE.GridHelper(30, 30, 0x55636d, 0x39444c);
+    // Piso: solo la sombra y una rejilla tenue que se desvanece.
+    const ground = new THREE.Mesh(geo(new THREE.CircleGeometry(16, 64)), new THREE.ShadowMaterial({ opacity: 0.22 }));
+    disposables.push(ground.material as THREE.Material);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    const grid = new THREE.GridHelper(28, 28, 0x7a8790, 0x7a8790);
     (grid.material as THREE.Material).transparent = true;
-    (grid.material as THREE.Material).opacity = 0.35;
+    (grid.material as THREE.Material).opacity = 0.12;
+    grid.position.y = 0.002;
     disposables.push(grid.geometry, grid.material as THREE.Material);
     scene.add(grid);
 
-    // Tractor delantero
-    wheel(5.6, 1.78, 1.0, 0.8);
-    wheel(5.6, -1.78, 1.0, 0.8);
-    box(3.6, 0.5, 1.2, 5.3, 1.15, 0, dark);
-    box(2.2, 1.25, 1.65, 6.2, 1.85, 0, hoodM);
-    box(1.4, 1.3, 1.5, 4.7, 3.05, 0, glass);
-    box(1.6, 0.1, 1.7, 4.7, 3.75, 0, hoodM);
-    box(1.5, 0.45, 1.6, 4.7, 2.2, 0, hoodM);
-    tube([3.7, 1.0, 0], [3.7, 2.1, 0], 0.18, dark);
-
-    // Gooseneck y brazos de tiro
-    tube([3.7, 1.9, 0], [3.2, 3.3, 0], 0.22, steel);
-    tube([3.2, 3.3, 0], [1.7, 3.35, 0], 0.22, steel);
-    for (const s of [1, -1]) {
-      tube([1.7, 3.3, 0.35 * s], [0, 2.75, 1.95 * s], 0.13, steel);
-      tube([0, 2.75, 1.95 * s], [-1.7, 1.55, 1.95 * s], 0.13, steel);
+    const model = buildScraper();
+    disposables.push(model);
+    scene.add(model.root);
+    const zoneMats: Record<string, THREE.MeshPhysicalMaterial[]> = {};
+    for (const [id, g] of Object.entries(model.zones)) {
+      const set = new Set<THREE.MeshPhysicalMaterial>();
+      g.traverse((o) => {
+        const m = (o as THREE.Mesh).material as THREE.MeshPhysicalMaterial | undefined;
+        if (m && (o as THREE.Mesh).isMesh) set.add(m);
+      });
+      zoneMats[id] = [...set];
     }
-
-    // Caja (BW)
-    const bw = groups.BW;
-    for (const s of [1, -1]) {
-      box(6.2, 2.4, 0.12, -2.9, 1.7, 1.75 * s, zoneMat.BW, bw);
-      box(6.2, 0.18, 0.2, -2.9, 2.95, 1.78 * s, zoneMat.BW, bw);
-      box(6.2, 0.2, 0.2, -2.9, 0.5, 1.78 * s, zoneMat.BW, bw);
-    }
-    box(6.2, 0.12, 3.5, -2.9, 0.5, 0, zoneMat.BW, bw);
-    box(0.12, 2.4, 3.5, -6.0, 1.7, 0, zoneMat.BW, bw);
-    tube([-1.4, 2.95, -1.8], [-1.4, 2.95, 1.8], 0.12, zoneMat.BW, bw);
-
-    // Apron (AP): compuerta curva que cierra el frente
-    const ap = groups.AP;
-    const curve = new THREE.Mesh(geo(new THREE.CylinderGeometry(1.5, 1.5, 3.5, 28, 1, true, 0, Math.PI / 2)), zoneMat.AP);
-    curve.rotation.x = Math.PI / 2;
-    curve.position.set(0.1, 2.0, 0);
-    ap.add(curve);
-    box(0.08, 0.9, 3.5, 1.6, 2.45, 0, zoneMat.AP, ap);
-    for (const s of [1, -1]) {
-      const q = new THREE.Mesh(geo(new THREE.CircleGeometry(1.5, 24, -Math.PI / 2, Math.PI / 2)), zoneMat.AP);
-      q.position.set(0.1, 2.0, 1.76 * s);
-      ap.add(q);
-      const r = new THREE.Mesh(geo(new THREE.PlaneGeometry(1.5, 0.9)), zoneMat.AP);
-      r.position.set(0.85, 2.45, 1.76 * s);
-      ap.add(r);
-      tube([1.45, 2.8, 1.8 * s], [0.2, 2.45, 1.9 * s], 0.08, zoneMat.AP, ap);
-    }
-    box(0.28, 0.36, 0.14, 1.75, 2.85, 0, zoneMat.AP, ap);
-    tube([1.75, 2.95, 0], [2.7, 3.32, 0], 0.07, dark, ap);
-
-    // Eyector (EY)
-    const ey = groups.EY;
-    box(0.1, 2.2, 3.3, -4.4, 1.65, 0, zoneMat.EY, ey);
-    for (const s of [1, -1]) tube([-4.4, 1.3, 0.9 * s], [-6.5, 1.15, 0.9 * s], 0.09, zoneMat.EY, ey);
-    tube([-4.4, 1.65, 0], [-6.3, 1.4, 0], 0.1, zoneMat.EY, ey);
-
-    // Tractor trasero
-    wheel(-5.2, 1.98, 1.0, 0.7);
-    wheel(-5.2, -1.98, 1.0, 0.7);
-    box(1.6, 1.2, 1.4, -6.9, 1.6, 0, hoodM);
-    box(0.4, 0.6, 1.2, -7.9, 1.2, 0, dark);
 
     // Puntos
-    const sphereG = geo(new THREE.SphereGeometry(0.17, 20, 14));
-    const haloG = geo(new THREE.SphereGeometry(0.17, 20, 14));
+    const sphereG = geo(new THREE.SphereGeometry(0.15, 24, 16));
+    const haloG = geo(new THREE.SphereGeometry(0.15, 24, 16));
+    const ringM = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide });
+    disposables.push(ringM);
     const markers: { mesh: THREE.Mesh; halo?: THREE.Mesh; p: PointAnalysis; label: HTMLDivElement }[] = [];
     const labelsEl = labelsRef.current!;
     labelsEl.innerHTML = '';
     for (const p of points) {
       const pos = pos3d[p.point.code];
       if (!pos) continue;
-      const m = mat(HEX[p.status], { emissive: HEX[p.status], emissiveIntensity: 0.35, roughness: 0.4, metalness: 0 });
+      const m = mat(HEX[p.status], { emissive: HEX[p.status], emissiveIntensity: 0.45, roughness: 0.35, metalness: 0 });
       const mesh = new THREE.Mesh(sphereG, m);
       mesh.position.set(...pos);
       mesh.userData.key = p.point.key;
       scene.add(mesh);
-      let halo: THREE.Mesh | undefined;
-      if (p.status === 'alerta' || p.status === 'critico') {
-        const hm = new THREE.MeshBasicMaterial({ color: HEX[p.status], transparent: true, opacity: 0.25, depthWrite: false });
-        disposables.push(hm);
-        halo = new THREE.Mesh(haloG, hm);
-        halo.position.copy(mesh.position);
-        halo.scale.setScalar(1.7);
-        scene.add(halo);
-      }
+      // Contorno blanco para que el punto se lea sobre la pintura amarilla.
+      const halo = new THREE.Mesh(haloG, ringM);
+      halo.position.copy(mesh.position);
+      halo.scale.setScalar(1.35);
+      scene.add(halo);
       const label = document.createElement('div');
       label.textContent = p.point.code;
-      label.className = 'lbl3d';
+      label.className = `lbl3d lbl3d-${p.status}`;
+      if (p.status === 'critico' || p.status === 'alerta') {
+        mesh.scale.setScalar(1.45);
+        halo.scale.setScalar(1.45 * 1.35);
+      }
       labelsEl.appendChild(label);
       markers.push({ mesh, halo, p, label });
     }
@@ -245,16 +195,23 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
 
     api.current = {
       setZone: (z) => {
-        for (const [id, m] of Object.entries(zoneMat)) {
-          m.emissive.setHex(id === z ? 0x2f6fa3 : 0x000000);
-          m.emissiveIntensity = id === z ? 0.55 : 0;
-        }
+        for (const [id, ms] of Object.entries(zoneMats))
+          for (const m of ms) {
+            if (!m.emissive) continue;
+            m.emissive.setHex(id === z ? 0x3d7fc4 : 0x000000);
+            m.emissiveIntensity = id === z ? 0.45 : 0;
+          }
       },
       setBowlClear: (b) => {
-        zoneMat.BW.transparent = b;
-        zoneMat.BW.opacity = b ? 0.18 : 1;
-        zoneMat.BW.depthWrite = !b;
-        zoneMat.BW.needsUpdate = true;
+        model.zones.BW.traverse((o) => {
+          if (o.userData.edge) o.visible = !b;
+        });
+        for (const m of zoneMats.BW ?? []) {
+          m.transparent = b;
+          m.opacity = b ? 0.15 : 1;
+          m.depthWrite = !b;
+          m.needsUpdate = true;
+        }
       },
     };
 
@@ -263,6 +220,7 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
       renderer.setSize(w, height);
       camera.aspect = w / height;
       camera.updateProjectionMatrix();
+      fit(w / height);
     });
     ro.observe(el);
 
@@ -327,7 +285,7 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
       <div ref={wrap} style={{ position: 'relative', height, borderRadius: 8, overflow: 'hidden', background: 'var(--sup2)' }}>
         <div ref={labelsRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }} aria-hidden="true" />
         <div className="tiny muted" style={{ position: 'absolute', left: 10, bottom: 8, pointerEvents: 'none' }}>
-          Representación simplificada · arrastre para girar, rueda para acercar
+          Arrastra para girar · rueda para acercar
         </div>
         {tip && (
           <div

@@ -1737,3 +1737,12 @@ details.more[open] > summary {
 details.finding {
   display: block;
 }
+.lbl3d-critico {
+  background: var(--critico);
+  border-color: var(--critico);
+  color: var(--sobre-critico);
+}
+.lbl3d-alerta {
+  background: var(--alerta-fondo);
+  border-color: var(--alerta);
+}
