@@ -3,3 +3,4 @@ dist
 .env*
 capturas/
 test-results/
+*.tsbuildinfo

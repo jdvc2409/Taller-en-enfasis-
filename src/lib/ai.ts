@@ -1,6 +1,6 @@
 // IA dentro de la plataforma: arma el contexto con cifras reales y llama a Claude desde el navegador.
 // La clave la pega el usuario en Datos y queda solo en este navegador; nunca va en el código ni en el respaldo.
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
 import type { FleetAnalysis, PointAnalysis, UnitAnalysis } from './analysis';
 import { STATUS_LABEL, fmtH } from './analysis';
 import { stateLabel } from './ot';
@@ -149,7 +149,9 @@ export interface AskOptions {
 
 /** Llama a Claude con streaming. Devuelve el texto completo. */
 export async function askClaude({ apiKey, model, text, imageB64, onText, signal }: AskOptions): Promise<string> {
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  // El SDK se carga solo cuando se usa la IA, para no frenar la primera visita.
+  const { default: AnthropicSDK } = await import('@anthropic-ai/sdk');
+  const client = new AnthropicSDK({ apiKey, dangerouslyAllowBrowser: true });
   const content: Anthropic.ContentBlockParam[] = [];
   if (imageB64) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageB64 } });
   content.push({ type: 'text', text });
@@ -175,12 +177,15 @@ export async function askClaude({ apiKey, model, text, imageB64, onText, signal 
 
 /** Mensaje de error entendible para la persona. */
 export function aiErrorMessage(e: unknown): string {
-  if (e instanceof Anthropic.AuthenticationError) return 'La clave de API no es válida. Revísela en Datos → IA.';
-  if (e instanceof Anthropic.PermissionDeniedError) return 'La clave no tiene permiso para este modelo. Pruebe otro modelo en Datos → IA.';
-  if (e instanceof Anthropic.NotFoundError) return 'El modelo elegido no existe para esta clave. Elija otro en Datos → IA.';
-  if (e instanceof Anthropic.RateLimitError) return 'Se alcanzó el límite de uso de la API. Espere un momento y use "Regenerar".';
-  if (e instanceof Anthropic.APIConnectionError) return 'No hay conexión con la API de Anthropic. Revise internet o use "Copiar para pegar en Claude".';
-  if (e instanceof Anthropic.APIError) return `La API respondió con error ${e.status}: ${e.message}`;
-  if (e instanceof Error && e.name === 'AbortError') return 'Solicitud cancelada.';
+  // Errores tipados del SDK (se leen por nombre y estado porque el SDK se carga de forma diferida).
+  const err = e as { name?: string; status?: number; message?: string };
+  if (err?.name === 'AbortError' || err?.name === 'APIUserAbortError') return 'Solicitud cancelada.';
+  if (err?.status === 401) return 'La clave de API no es válida. Revísela en Datos → IA.';
+  if (err?.status === 403) return 'La clave no tiene permiso para este modelo. Pruebe otro modelo en Datos → IA.';
+  if (err?.status === 404) return 'El modelo elegido no existe para esta clave. Elija otro en Datos → IA.';
+  if (err?.status === 429) return 'Se alcanzó el límite de uso de la API. Espere un momento y use "Regenerar".';
+  if (err?.name === 'APIConnectionError' || err?.name === 'APIConnectionTimeoutError')
+    return 'No hay conexión con la API de Anthropic. Revise internet o use "Copiar para pegar en Claude".';
+  if (typeof err?.status === 'number') return `La API respondió con error ${err.status}: ${err.message ?? ''}`;
   return e instanceof Error ? e.message : String(e);
 }
