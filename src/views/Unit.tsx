@@ -7,6 +7,7 @@ import { Timeline } from '../components/Timeline';
 import { HeatHistory } from '../components/HeatHistory';
 import { Findings } from '../components/Findings';
 import { AIButton } from '../components/AIPanel';
+import { Term } from '../components/Help';
 import { KPIs, Panel, StatusIcon, StatusPill, fmt, fmtDate } from '../components/ui';
 import { STATUS_RANK, worst } from '../lib/analysis';
 
@@ -52,48 +53,8 @@ export function Unit({ unitId }: { unitId: string }) {
 
       <Timeline unit={unitId} />
 
-      <KPIs
-        items={[
-          { label: 'Crítico', value: u.counts.critico, tone: u.counts.critico ? 'critico' : undefined },
-          { label: 'Alerta', value: u.counts.alerta, tone: u.counts.alerta ? 'alerta' : undefined },
-          { label: 'Normal', value: u.counts.normal },
-          { label: 'Sin grieta', value: u.counts.sin },
-          {
-            label: 'MTBF estructural',
-            value: fmt(u.mtbf),
-            unit: 'h',
-            sub: `Tiempo medio entre reparaciones: ${u.repairs} en ${fmt(u.observedHours)} h`,
-            title: 'Tiempo medio entre reparaciones = horas observadas / reparaciones.',
-          },
-          {
-            label: 'MTBF de falla',
-            value: fmt(u.mtbfFailure),
-            unit: 'h',
-            sub: `${u.failures} fallas (sobre Danger o fractura)`,
-            title: 'Definición del curso: horas en servicio / fallas. Falla = episodio sobre Danger o fractura reportada.',
-          },
-          {
-            label: 'Horas con punto crítico',
-            value: fmt(u.hoursWithCriticalConfirmed),
-            unit: 'h',
-            sub: `confirmadas; hasta ${fmt(u.hoursWithCritical)} h`,
-          },
-          {
-            label: 'OT abiertas',
-            value: fleet.backlog.open,
-            sub: `Backlog (trabajo pendiente) ${fmt(fleet.backlog.hh, 1)} h-h = ${fmt(fleet.backlog.weeks, 1)} semanas`,
-          },
-          {
-            label: 'Inspecciones a tiempo',
-            value: u.onTimePct == null ? '—' : fmt(u.onTimePct * 100),
-            unit: '%',
-            sub: `${u.onTimeCount[0]} de ${u.onTimeCount[1]} intervalos ≤ ${fmt(db.settings.targetInterval)} h`,
-          },
-        ]}
-      />
-
       <div className="grid-main" style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}>
-        <Panel title="Modelo 3D" sub="Puntos coloreados por estado. Pase el mouse por una zona de la lista para resaltarla.">
+        <Panel title="Modelo 3D" sub="Gira con el mouse. Pasa el mouse por una zona para resaltarla.">
           <Suspense fallback={<div className="empty">Cargando el modelo 3D…</div>}>
             <Scraper3D points={u.points} pos3d={db.pos3d} highlightZone={hoverZone} onOpen={(k) => navigate(href.punto(k))} />
           </Suspense>
@@ -135,14 +96,73 @@ export function Unit({ unitId }: { unitId: string }) {
         </Panel>
       </div>
 
+      <KPIs
+        items={[
+          { label: 'Crítico', value: u.counts.critico, tone: u.counts.critico ? 'critico' : undefined, sub: 'puntos' },
+          { label: 'Alerta', value: u.counts.alerta, tone: u.counts.alerta ? 'alerta' : undefined, sub: 'puntos' },
+          { label: <Term k="mtbf">MTBF estructural</Term>, value: fmt(u.mtbf), unit: 'h', sub: `${u.repairs} reparaciones` },
+          {
+            label: <Term k="intervalo">Inspecciones a tiempo</Term>,
+            value: u.onTimePct == null ? '—' : fmt(u.onTimePct * 100),
+            unit: '%',
+            sub: `${u.onTimeCount[0]} de ${u.onTimeCount[1]}`,
+          },
+        ]}
+      />
+      <details className="more panel">
+        <summary>Más indicadores</summary>
+        <div style={{ padding: '0 18px 18px' }}>
+          <KPIs
+        items={[
+          { label: 'Crítico', value: u.counts.critico, tone: u.counts.critico ? 'critico' : undefined },
+          { label: 'Alerta', value: u.counts.alerta, tone: u.counts.alerta ? 'alerta' : undefined },
+          { label: 'Normal', value: u.counts.normal },
+          { label: 'Sin grieta', value: u.counts.sin },
+          {
+            label: 'MTBF estructural',
+            value: fmt(u.mtbf),
+            unit: 'h',
+            sub: `Tiempo medio entre reparaciones: ${u.repairs} en ${fmt(u.observedHours)} h`,
+            title: 'Tiempo medio entre reparaciones = horas observadas / reparaciones.',
+          },
+          {
+            label: 'MTBF de falla',
+            value: fmt(u.mtbfFailure),
+            unit: 'h',
+            sub: `${u.failures} fallas (sobre Danger o fractura)`,
+            title: 'Definición del curso: horas en servicio / fallas. Falla = episodio sobre Danger o fractura reportada.',
+          },
+          {
+            label: 'Horas con punto crítico',
+            value: fmt(u.hoursWithCriticalConfirmed),
+            unit: 'h',
+            sub: `confirmadas; hasta ${fmt(u.hoursWithCritical)} h`,
+          },
+          {
+            label: 'OT abiertas',
+            value: fleet.backlog.open,
+            sub: `Backlog (trabajo pendiente) ${fmt(fleet.backlog.hh, 1)} h-h = ${fmt(fleet.backlog.weeks, 1)} semanas`,
+          },
+          {
+            label: 'Inspecciones a tiempo',
+            value: u.onTimePct == null ? '—' : fmt(u.onTimePct * 100),
+            unit: '%',
+            sub: `${u.onTimeCount[0]} de ${u.onTimeCount[1]} intervalos ≤ ${fmt(db.settings.targetInterval)} h`,
+          },
+        ]}
+      />
+
+        </div>
+      </details>
+
       <Panel
         title="Historia completa"
-        sub={`${u.points.length} puntos × ${u.events.length} inspecciones. Clic en una celda para abrir el punto.`}
+        sub="Cada fila es un punto; cada columna, una inspección."
       >
         <HeatHistory unitId={u.unitId} />
       </Panel>
 
-      <Panel id="hallazgos" title="Hallazgos" sub="Texto para decidir, ordenado por severidad. Cada hallazgo cita las cifras de donde sale.">
+      <Panel id="hallazgos" title="Hallazgos" sub="Haz clic en uno para ver el detalle.">
         <Findings items={u.findings} />
       </Panel>
     </div>

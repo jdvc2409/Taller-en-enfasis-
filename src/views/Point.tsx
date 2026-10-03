@@ -82,6 +82,7 @@ export function PointView({ pointKey }: { pointKey: string }) {
   const createWO = useCreateWO();
   const [zoom, setZoom] = useState<{ name: string; caption: string } | null>(null);
   const [upErr, setUpErr] = useState<string | null>(null);
+  const [allRows, setAllRows] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const p = fleet.points.find((x) => x.point.key === pointKey);
@@ -173,14 +174,17 @@ export function PointView({ pointKey }: { pointKey: string }) {
           <div style={{ fontSize: 16 }}>
             <b>{p.action}</b>
           </div>
-          <div className="small" style={{ marginTop: 4, color: 'var(--tinta2)' }}>
-            {p.hasCrack && (
-              <>
-                {p.priority} {p.priorityName}: {p.priorityWhy}{' '}
-              </>
-            )}
-            {p.statusNote}
-          </div>
+          <details className="why">
+            <summary>¿Por qué?</summary>
+            <div className="small" style={{ marginTop: 4, color: 'var(--tinta2)' }}>
+              {p.hasCrack && (
+                <>
+                  {p.priority} {p.priorityName}: {p.priorityWhy}{' '}
+                </>
+              )}
+              {p.statusNote}
+            </div>
+          </details>
         </div>
       </div>
 
@@ -188,7 +192,7 @@ export function PointView({ pointKey }: { pointKey: string }) {
         <div className="stack">
           <Panel
             title="Evolución de la grieta"
-            sub={fleet.isPast ? `Pronóstico con los datos hasta el ${fmtDate(fleet.asOf)}; en gris, lo que se midió después.` : 'Medidas, límites y pronóstico con banda de predicción del 90 %.'}
+            sub={fleet.isPast ? `Con datos hasta el ${fmtDate(fleet.asOf)}; en gris, lo medido después.` : undefined}
           >
             <GrowthChart pa={p} future={future} nowHours={u.nowHours} nowDate={u.nowDate} usage={u.usageForecast} isPast={fleet.isPast} />
           </Panel>
@@ -201,20 +205,20 @@ export function PointView({ pointKey }: { pointKey: string }) {
                 {p.rate == null ? '—' : fmt(p.rate, 1)}
                 {p.rate != null && <small>mm/100 h</small>}
               </div>
-              <div className="kpi-s">típico del equipo {fmt(u.typicalRate, 1)}</div>
+              <div className="kpi-s">típico: {fmt(u.typicalRate, 1)}</div>
             </div>
             <div className="kpi">
               <div className="kpi-l">Próxima inspección</div>
               <div className="kpi-v">
                 {p.nextInspection == null ? <span style={{ color: 'var(--critico)' }}>Reparar</span> : <>≤ {fmtH(p.nextInspection)}<small>h</small></>}
               </div>
-              <div className="kpi-s">{p.nextInspection == null ? 'antes de operar' : 'mitad del tiempo pesimista restante'}</div>
+              <div className="kpi-s">{p.nextInspection == null ? 'antes de operar' : 'de operación'}</div>
             </div>
           </div>
-          <p className="small muted" style={{ margin: 0 }}>
-            <b style={{ color: 'var(--tinta2)' }}>Método.</b> {p.fit.note}{/[Cc]onfianza/.test(p.fit.note) ? '' : ` Confianza ${p.fit.confidence}.`} Horas convertidas a fecha con {fmt(u.usageForecast, 1)} h/día.
+          <details className="why small muted">
+            <summary>Cómo se calculó</summary> {p.fit.note}{/[Cc]onfianza/.test(p.fit.note) ? '' : ` Confianza ${p.fit.confidence}.`} Horas convertidas a fecha con {fmt(u.usageForecast, 1)} h/día.
             Rango = escenario pesimista – optimista.
-          </p>
+          </details>
         </div>
 
         <div className="stack">
@@ -265,7 +269,6 @@ export function PointView({ pointKey }: { pointKey: string }) {
 
       <Panel
         title="Fotos"
-        sub="Agregar fotos las asocia a la última inspección del punto."
         actions={
           !fleet.isPast && (
             <>
@@ -298,7 +301,7 @@ export function PointView({ pointKey }: { pointKey: string }) {
         )}
       </Panel>
 
-      <Panel title="Historial del punto" sub="De la más reciente a la más antigua. Excluir una medida solo la saca de la tendencia: el estado sigue usando la más desfavorable." tight>
+      <Panel title="Historial del punto" sub="La medida más reciente arriba." tight>
         <div className="table-wrap">
           <table className="t">
             <thead>
@@ -313,7 +316,7 @@ export function PointView({ pointKey }: { pointKey: string }) {
               </tr>
             </thead>
             <tbody>
-              {[...p.series].reverse().map((s) => (
+              {[...p.series].reverse().slice(0, allRows ? undefined : 6).map((s) => (
                 <tr key={s.id}>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(s.date)}</td>
                   <td className="r">{fmt(s.hours, 1)}</td>
@@ -347,6 +350,13 @@ export function PointView({ pointKey }: { pointKey: string }) {
             </tbody>
           </table>
         </div>
+        {p.series.length > 6 && (
+          <div style={{ padding: '12px 18px', borderTop: '1px solid var(--linea)' }}>
+            <button className="btn sm" onClick={() => setAllRows((v) => !v)}>
+              {allRows ? 'Ver solo las últimas 6' : `Ver las ${p.series.length} mediciones`}
+            </button>
+          </div>
+        )}
       </Panel>
 
       <Panel title="Órdenes de trabajo de este punto">

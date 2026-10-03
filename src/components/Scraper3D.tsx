@@ -7,7 +7,7 @@ import type { PointAnalysis } from '../lib/analysis';
 import { STATUS_LABEL } from '../lib/analysis';
 import type { Status } from '../types';
 
-const HEX: Record<Status, number> = { critico: 0xd03b3b, alerta: 0xfab219, normal: 0x0ca30c, sin: 0xe6ecef, ni: 0x5b6670 };
+const HEX: Record<Status, number> = { critico: 0xb3261e, alerta: 0xd98e04, normal: 0x087a6f, sin: 0xe6ecef, ni: 0x7d8892 };
 
 interface Props {
   points: PointAnalysis[];

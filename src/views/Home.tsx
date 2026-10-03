@@ -1,8 +1,10 @@
 // Inicio: la puerta de entrada para alguien que nunca ha usado la plataforma.
 // Responde en una frase "¿cómo está la flota?" y ofrece las cuatro cosas que se pueden hacer.
+import { Suspense } from 'react';
 import { useAnalysis } from '../hooks';
 import { useStore } from '../store';
-import { href } from '../router';
+import { href, navigate } from '../router';
+import { Scraper3D } from '../components/Lazy3D';
 import { useCreateWO } from '../components/Ranking';
 import { Term } from '../components/Help';
 import { Icon, StatusIcon, StatusPill, fmt, fmtDate } from '../components/ui';
@@ -97,10 +99,7 @@ export function Home() {
     <div className="stack home">
       <div>
         <h1>Integridad estructural de la flota</h1>
-        <p className="lead">
-          Esta plataforma revisa las grietas de las traíllas {db.fleet ? `(${db.fleet})` : ''} y te dice cuáles reparar primero y cuándo volver a inspeccionar.
-          {fleet.lastDate && <> Última inspección: {fmtDate(fleet.lastDate)}.</>}
-        </p>
+        <p className="lead">Qué grietas reparar primero y cuándo volver a inspeccionar{fleet.lastDate ? ` · última inspección ${fmtDate(fleet.lastDate)}` : ''}.</p>
       </div>
 
       <Verdict />
@@ -110,10 +109,10 @@ export function Home() {
           ¿Qué quieres hacer?
         </h2>
         <div className="tasks">
-          <Task n={1} title="Ver qué reparar primero" text="La lista de grietas ordenada de la más urgente a la menos urgente." to={href.flota()} icon="right" />
-          <Task n={2} title="Registrar una inspección" text="Escribe las medidas de hoy, igual que en el formato de papel." to={href.inspeccion(u0?.unitId ?? '')} icon="plus" />
-          <Task n={3} title="Seguir las reparaciones" text="Las órdenes de trabajo, desde el aviso hasta el cierre." to={href.ot()} icon="right" />
-          <Task n={4} title="Buscar una medición" text="Todo el historial, con filtros por zona, punto y fecha." to={href.historial()} icon="right" />
+          <Task n={1} title="Ver qué reparar primero" text="La más urgente, arriba." to={href.flota()} icon="right" />
+          <Task n={2} title="Registrar una inspección" text="Paso a paso, zona por zona." to={href.inspeccion(u0?.unitId ?? '')} icon="plus" />
+          <Task n={3} title="Seguir las reparaciones" text="Órdenes de trabajo abiertas." to={href.ot()} icon="right" />
+          <Task n={4} title="Buscar una medición" text="Todo el historial, con filtros." to={href.historial()} icon="right" />
         </div>
       </section>
 
@@ -122,7 +121,7 @@ export function Home() {
           <div className="panel-h">
             <div>
               <h2>Cómo leer los colores</h2>
-              <p>Cada punto tiene un estado según cuánto mide su grieta. El color siempre va con su forma y su nombre.</p>
+              <p>Según cuánto mide la grieta.</p>
             </div>
           </div>
           <div className="panel-b">
@@ -163,47 +162,25 @@ export function Home() {
         <section className="panel">
           <div className="panel-h">
             <div>
-              <h2>Cómo está organizada</h2>
-              <p>Vas de lo general a lo particular. En cada nivel puedes hacer clic para bajar al siguiente.</p>
+              <h2>Tu traílla {u0?.unitId}</h2>
+              <p>Gírala con el mouse. Haz clic en un punto para abrirlo.</p>
             </div>
+            {u0 && (
+              <a className="btn sm" href={href.equipo(u0.unitId)}>
+                Ver equipo
+              </a>
+            )}
           </div>
-          <div className="panel-b">
-            <ol className="levels">
-              <li>
-                <b>Flota</b>
-                <span>Todos los equipos y la lista de qué reparar primero.</span>
-              </li>
-              <li>
-                <b>Equipo</b>
-                <span>Una traílla, por ejemplo la {u0?.unitId ?? '631-01'}, con su modelo 3D.</span>
-              </li>
-              <li>
-                <b>
-                  <Term k="zona" />
-                </b>
-                <span>Apron, Caja o Eyector, con su esquema real.</span>
-              </li>
-              <li>
-                <b>
-                  <Term k="punto">Punto</Term>
-                </b>
-                <span>Una grieta: cuánto mide, cómo crece y cuándo llega al límite.</span>
-              </li>
-            </ol>
-            <p className="small muted" style={{ margin: '12px 0 0' }}>
-              ¿Una palabra no es clara? Haz clic en las palabras subrayadas con puntos, o abre{' '}
-              <button className="linklike" onClick={() => window.dispatchEvent(new Event('abrir-ayuda'))}>
-                Ayuda
-              </button>{' '}
-              arriba a la derecha.
-            </p>
+          <div className="panel-b home-3d">
+            {u0 && (
+              <Suspense fallback={<div className="empty">Cargando el modelo 3D…</div>}>
+                <Scraper3D points={u0.points} pos3d={db.pos3d} onOpen={(k) => navigate(href.punto(k))} height={320} />
+              </Suspense>
+            )}
           </div>
         </section>
       </div>
 
-      <p className="small muted">
-        ¿Tienes un Excel nuevo o quieres cambiar los límites? Eso está en <a href={href.datos()}>Datos</a>.
-      </p>
     </div>
   );
 }

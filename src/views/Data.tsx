@@ -140,7 +140,7 @@ export function Data() {
       <div className="page-head">
         <div>
           <h1>Datos</h1>
-          <p>Carga del historial, revisión de calidad, criterios, parámetros, IA e imágenes. Todo se guarda en este navegador.</p>
+          <p>Todo se guarda en este navegador.</p>
         </div>
       </div>
       {msg && (
@@ -149,7 +149,7 @@ export function Data() {
         </div>
       )}
 
-      <Panel title="Carga del Excel" sub="Columnas reconocidas por nombre (sin importar mayúsculas, tildes ni orden). Fechas de Excel, seriales o texto; decimales con coma.">
+      <Panel title="Carga del Excel" sub="Agrega inspecciones desde un archivo Excel.">
         <div className="row" style={{ gap: 12, alignItems: 'flex-end' }}>
           <div className="seg" role="group" aria-label="Modo de carga">
             <button aria-pressed={mode === 'agregar'} onClick={() => setMode('agregar')}>
@@ -362,7 +362,7 @@ export function Data() {
         </Panel>
       </div>
 
-      <Panel title="Límites por punto" sub="Caution y Danger en mm, y consecuencia propia del punto si difiere de la zona (vacío = la de la zona)." tight>
+      <Panel title="Límites por punto" sub="Caution y Danger en mm." tight>
         <div className="table-wrap">
           <table className="t">
             <thead>
@@ -466,7 +466,7 @@ export function Data() {
         </Panel>
         <Panel
           title="Biblioteca de imágenes"
-          sub="Suba esquemas y fotos con el mismo nombre de la columna Imagen del Excel."
+          sub="Esquemas y fotos."
           actions={
             <>
               <input

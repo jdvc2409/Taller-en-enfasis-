@@ -40,7 +40,7 @@ function WOBoard() {
           { label: 'Cerradas', value: fleet.backlog.closed },
         ]}
       />
-      <Panel title="Sugeridas por la plataforma" sub="Puntos con grieta en prioridad P1 a P3 que todavía no tienen OT." tight>
+      <Panel title="Sugeridas por la plataforma" sub="Grietas que aún no tienen orden de trabajo." tight>
         {suggested.length ? (
           <div className="table-wrap">
             <table className="t">

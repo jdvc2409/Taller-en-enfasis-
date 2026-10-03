@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import { useAnalysis } from '../hooks';
 import { useStore } from '../store';
-import { href } from '../router';
+import { href, navigate } from '../router';
+import { Scraper3D } from '../components/Lazy3D';
 import { Timeline } from '../components/Timeline';
 import { Ranking } from '../components/Ranking';
 import { RiskMatrix } from '../components/RiskMatrix';
@@ -102,13 +104,13 @@ export function Fleet() {
             ),
             value: crit,
             tone: crit ? 'critico' : undefined,
-            sub: 'Grieta sobre Danger (límite de operación segura) o con fractura reportada.',
+            sub: 'No operar hasta reparar',
           },
           {
             label: 'Horas con punto crítico',
             value: fmt(hcc),
             unit: 'h',
-            sub: `Operadas con al menos un punto crítico, confirmadas por medición. Hasta ${fmt(hc)} h contando hasta la reparación.`,
+            sub: `confirmadas (hasta ${fmt(hc)} h)`,
           },
           {
             label: (
@@ -118,7 +120,7 @@ export function Fleet() {
             ),
             value: fmt(u0?.mtbf),
             unit: 'h',
-            sub: `MTBF (tiempo medio entre reparaciones): ${u0?.repairs ?? 0} reparaciones en ${fmt(u0?.observedHours)} h.`,
+            sub: `${u0?.repairs ?? 0} reparaciones`,
           },
           {
             label: (
@@ -128,14 +130,14 @@ export function Fleet() {
             ),
             value: onTime[1] ? fmt((onTime[0] / onTime[1]) * 100) : '—',
             unit: '%',
-            sub: `${onTime[0]} de ${onTime[1]} intervalos dentro del objetivo de ${fmt(db.settings.targetInterval)} h.`,
+            sub: `${onTime[0]} de ${onTime[1]}`,
           },
         ]}
       />
 
       <Panel
         title="Qué atender primero"
-        sub="Puntos con grieta, del más urgente (arriba) al menos urgente. Haz clic en una fila para ver el detalle."
+        sub="El más urgente, arriba."
         tight
       >
         <Ranking fleet={fleet} rows={fleet.ranking} />
@@ -146,9 +148,7 @@ export function Fleet() {
             </summary>
             <div style={{ padding: '0 18px 14px' }}>
             <h3 style={{ marginBottom: 4 }}>Reincidentes: <Term k="causaRaiz">análisis de causa raíz</Term> pendiente</h3>
-            <p className="small muted" style={{ margin: '0 0 10px' }}>
-              Puntos reparados dos o más veces, o que ya operaron sobre Danger. Volver a soldar no elimina la causa.
-            </p>
+
             <div className="row" style={{ gap: 6 }}>
               {rec.map((p) => (
                 <a key={p.point.key} className="pill" href={href.punto(p.point.key)} title={p.point.description}>
@@ -167,18 +167,27 @@ export function Fleet() {
       </Panel>
 
       <div className="grid-main">
+        <div className="stack">
+        {u0 && (
+          <Panel title="Dónde están las grietas" sub="Gira el modelo con el mouse. Clic en un punto para abrirlo." actions={<a className="btn sm" href={href.equipo(u0.unitId)}>Ver equipo {u0.unitId}</a>}>
+            <Suspense fallback={<div className="empty">Cargando el modelo 3D…</div>}>
+              <Scraper3D points={u0.points} pos3d={db.pos3d} onOpen={(k) => navigate(href.punto(k))} height={380} />
+            </Suspense>
+          </Panel>
+        )}
         <Panel
           title="Hallazgos principales"
-          sub="Generados a partir de los datos, del más grave al menos grave."
+          sub="Haz clic en uno para ver el detalle."
           actions={u0 && <a href={href.equipo(u0.unitId) + '#hallazgos'}>Ver todos los hallazgos</a>}
         >
           <Findings items={fleet.findings} limit={5} />
         </Panel>
+        </div>
         <div className="stack">
           {units.map((u) => (
             <UnitCard key={u.unitId} u={u} />
           ))}
-          <Panel title={<Term k="matriz" />} sub="Cantidad de puntos según urgencia (probabilidad) y consecuencia.">
+          <Panel title={<Term k="matriz" />}>
             <RiskMatrix points={pts} />
           </Panel>
         </div>

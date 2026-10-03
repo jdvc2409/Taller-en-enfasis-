@@ -57,68 +57,15 @@ export function Term({ k, children }: { k: GlossaryKey; children?: ReactNode }) 
 
 // ---------------------------------------------------------------- guía de cada pantalla
 
-const GUIDES: Partial<Record<Route['name'], { title: string; what: string; steps: ReactNode[] }>> = {
-  flota: {
-    title: 'Qué reparar primero',
-    what: 'Aquí están todos los puntos con grieta, del más urgente al menos urgente.',
-    steps: [
-      'Mira la primera fila de la tabla: es lo que hay que atender antes que nada.',
-      'Haz clic en el código de un punto (por ejemplo AP-03) para ver su historia y cuándo llegará al límite.',
-      <>Si hay que repararlo, usa el botón “Crear OT” de esa fila.</>,
-    ],
-  },
-  equipo: {
-    title: 'Un equipo completo',
-    what: 'Todo lo que pasa en una traílla: dónde están sus grietas, cómo han cambiado y qué encontró la plataforma.',
-    steps: [
-      'En el modelo 3D cada punto tiene el color de su estado. Puedes girarlo con el mouse.',
-      'En el mapa de calor cada fila es un punto y cada columna una inspección: así ves cuándo apareció cada grieta.',
-      'Haz clic en una zona o en un punto para entrar al detalle.',
-    ],
-  },
-  zona: {
-    title: 'Una zona de la traílla',
-    what: 'El esquema real de la zona con cada punto de inspección marcado en su lugar.',
-    steps: ['Cada círculo es un punto; su color es su estado.', 'Haz clic en un punto para ver su historia completa.'],
-  },
-  punto: {
-    title: 'La historia de una grieta',
-    what: 'Cuánto mide la grieta, cómo ha crecido y cuándo llegará al límite.',
-    steps: [
-      'Lee primero el recuadro de color: dice qué hay que hacer con este punto.',
-      'En la gráfica, cada punto es una medición. Las líneas punteadas son los límites Caution y Danger. La banda sombreada es el pronóstico.',
-      'Más abajo está cada medición. Si una está mal medida puedes excluirla del pronóstico.',
-    ],
-  },
-  historial: {
-    title: 'Todas las mediciones',
-    what: 'Cada medida registrada, de la más reciente a la más antigua.',
-    steps: ['Usa los filtros para buscar una zona, un punto, un estado o un rango de fechas.', 'Con “Exportar a Excel” descargas lo que ves.'],
-  },
-  ot: {
-    title: 'Órdenes de trabajo',
-    what: 'Cada reparación se sigue de principio a fin con una orden de trabajo (OT).',
-    steps: [
-      'Las columnas son las etapas: Notificación → OT abierta → Planeada → Programada → Ejecutada → Cerrada.',
-      'Haz clic en una tarjeta para abrir la OT y avanzarla de etapa.',
-      'Al cerrar una OT con el ensayo final aceptado, el punto queda reparado (L = 0).',
-    ],
-  },
-  inspeccion: {
-    title: 'Registrar una inspección',
-    what: 'Es el mismo formato de papel de campo. Al guardar, todo se recalcula solo.',
-    steps: [
-      'Arriba, llena la fecha, el horómetro y el inspector.',
-      'En cada punto escribe cuánto mide la grieta en mm. Escribe 0 si no hay grieta.',
-      'Si no pudiste revisar un punto marca N/I; si se reparó, marca Reparada. El estado se calcula solo.',
-      'Al final, pulsa “Guardar inspección”.',
-    ],
-  },
-  datos: {
-    title: 'Datos y configuración',
-    what: 'Normalmente no necesitas entrar aquí. Sirve para cargar un Excel nuevo, revisar la calidad de los datos o cambiar límites.',
-    steps: ['Para agregar inspecciones desde Excel, usa “Carga del Excel”.', 'Si algo se dañó, “Restaurar datos originales” vuelve al inicio.'],
-  },
+const GUIDES: Partial<Record<Route['name'], { title: string; tip: string }>> = {
+  flota: { title: 'Qué reparar primero', tip: 'Arriba lo más urgente. Haz clic en un punto para ver su detalle.' },
+  equipo: { title: 'Un equipo', tip: 'Gira el modelo 3D con el mouse. Haz clic en un punto para abrirlo.' },
+  zona: { title: 'Una zona', tip: 'Cada círculo es un punto. Haz clic en uno para abrirlo.' },
+  punto: { title: 'Una grieta', tip: 'El recuadro de color dice qué hacer. La gráfica muestra cómo ha crecido.' },
+  historial: { title: 'Historial', tip: 'Filtra por zona, punto o fecha. Exporta a Excel lo que ves.' },
+  ot: { title: 'Reparaciones', tip: 'Cada columna es una etapa. Abre una tarjeta para avanzarla.' },
+  inspeccion: { title: 'Nueva inspección', tip: 'Sigue los pasos: datos, cada zona y guardar.' },
+  datos: { title: 'Datos', tip: 'Solo para cargar un Excel nuevo o cambiar límites.' },
 };
 
 const HIDDEN_KEY = 'guias-ocultas';
@@ -149,20 +96,14 @@ export function ScreenGuide({ route }: { route: Route['name'] }) {
   if (!g || hidden.includes(route)) return null;
   return (
     <section className="guide no-print" aria-label="Cómo usar esta pantalla">
-      <div className="guide-ic" aria-hidden="true">
+      <span className="help-q" aria-hidden="true">
         ?
-      </div>
-      <div className="guide-body">
-        <div className="guide-k">Estás en: {g.title}</div>
-        <p className="guide-what">{g.what}</p>
-        <ol className="guide-steps">
-          {g.steps.map((s, i) => (
-            <li key={i}>{s}</li>
-          ))}
-        </ol>
-      </div>
-      <button className="btn sm ghost" onClick={() => writeHidden([...readHidden(), route])}>
-        Entendido, ocultar
+      </span>
+      <span>
+        <b>{g.title}.</b> {g.tip}
+      </span>
+      <button className="btn sm ghost icon" onClick={() => writeHidden([...readHidden(), route])} aria-label="Ocultar esta ayuda" title="Ocultar">
+        <Icon name="x" size={14} />
       </button>
     </section>
   );

@@ -9,7 +9,7 @@ import { toNumber } from '../lib/importer';
 import { daysBetween } from '../lib/quality';
 import { today } from '../lib/ot';
 import { Schematic } from '../components/Schematic';
-import { Icon, Panel, StatusPill, fmt, fmtDate } from '../components/ui';
+import { Icon, StatusPill, fmt, fmtDate } from '../components/ui';
 
 interface Row {
   L: string;
@@ -18,13 +18,6 @@ interface Row {
   comment: string;
   files: File[];
 }
-
-const CRITERIA = [
-  { s: 'normal' as const, t: 'L actual menor que Caution. Seguimiento en la frecuencia normal.' },
-  { s: 'alerta' as const, t: 'L actual igual o mayor que Caution y menor que Danger. Aumentar la frecuencia de inspección y programar reparación.' },
-  { s: 'critico' as const, t: 'L actual igual o mayor que Danger. Reparar antes de continuar operando.' },
-  { s: 'ni' as const, t: 'No inspeccionado: acceso, limpieza deficiente o fuera de programación.' },
-];
 
 export function InspectionForm({ unitId }: { unitId: string }) {
   const fleet = useAnalysis();
@@ -45,6 +38,7 @@ export function InspectionForm({ unitId }: { unitId: string }) {
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
 
   if (!u)
     return (
@@ -146,31 +140,122 @@ export function InspectionForm({ unitId }: { unitId: string }) {
     }
   };
 
+  const headErrors = errors.filter((e) => !e.startsWith('Falta L'));
+  const zoneMissing = (zid: string) => missing.filter((p) => p.point.zone === zid);
+  const steps = [
+    { t: 'Datos', ok: !headErrors.length },
+    ...zones.map((z) => ({ t: z.name.split(' (')[0], ok: !zoneMissing(z.id).length })),
+    { t: 'Revisar y guardar', ok: !errors.length },
+  ];
+  const last = steps.length - 1;
+  const go = (n: number) => {
+    setStep(Math.max(0, Math.min(last, n)));
+    window.scrollTo(0, 0);
+  };
+
+  const pointCard = (p: (typeof u.points)[number]) => {
+    const r = row(p.point.code);
+    const prev = [...p.series].reverse().find((s) => s.length != null);
+    const L = r.ni ? null : r.rep ? 0 : toNumber(r.L);
+    const st = r.ni ? 'ni' : L == null ? null : statusOf(L, p.point);
+    const drop = !r.rep && L != null && prev?.length != null && L < prev.length;
+    const miss = tried && !r.ni && !r.rep && L == null;
+    const mode = r.ni ? 'ni' : r.rep ? 'rep' : 'med';
+    return (
+      <div key={p.point.key} className={`wz-pt${miss ? ' miss' : ''}`}>
+        <div className="wz-pt-h">
+          <div>
+            <div className="code">{p.point.code}</div>
+            <div className="small muted">{p.point.description}</div>
+          </div>
+          {r.rep ? <span className="st">Reparada</span> : st ? <StatusPill status={st} /> : null}
+        </div>
+        <div className="seg wz-mode" role="radiogroup" aria-label={`Resultado en ${p.point.code}`}>
+          <button type="button" aria-pressed={mode === 'med'} onClick={() => setRow(p.point.code, { ni: false, rep: false })}>
+            Medí
+          </button>
+          <button type="button" aria-pressed={mode === 'ni'} onClick={() => setRow(p.point.code, { ni: true, rep: false })}>
+            No pude revisarlo
+          </button>
+          <button type="button" aria-pressed={mode === 'rep'} onClick={() => setRow(p.point.code, { rep: true, ni: false })}>
+            Se reparó
+          </button>
+        </div>
+        {mode === 'med' && (
+          <label className="wz-l">
+            <span>Largo de la grieta</span>
+            <span className="wz-l-in">
+              <input
+                data-l={p.point.code}
+                inputMode="decimal"
+                value={r.L}
+                placeholder="0"
+                onChange={(e) => setRow(p.point.code, { L: e.target.value })}
+                aria-label={`L actual ${p.point.code}`}
+                aria-invalid={miss}
+              />
+              mm
+            </span>
+            <span className="tiny muted">
+              Antes: {prev ? `${prev.length} mm` : '—'} · límite {p.point.danger} mm · 0 = sin grieta
+            </span>
+          </label>
+        )}
+        {miss && <div className="f-err">Escribe el largo, o elige “No pude revisarlo”.</div>}
+        {st === 'critico' && <div className="f-err">Crítico: reparar antes de seguir operando.</div>}
+        {drop && <div className="tiny" style={{ color: 'var(--alerta)' }}>Menor que la medida anterior ({prev!.length} mm) sin reparación: verifica.</div>}
+        <details className="wz-more">
+          <summary>{r.comment || r.files.length ? `Comentario${r.files.length ? ` · ${r.files.length} foto(s)` : ''}` : 'Agregar comentario o foto'}</summary>
+          <input value={r.comment} onChange={(e) => setRow(p.point.code, { comment: e.target.value })} placeholder="Comentario" style={{ width: '100%' }} />
+          <label className="btn sm" style={{ marginTop: 8 }}>
+            <Icon name="camera" size={14} />
+            {r.files.length ? `${r.files.length} foto(s)` : 'Agregar fotos'}
+            <input type="file" accept="image/*" multiple hidden onChange={(e) => setRow(p.point.code, { files: Array.from(e.target.files ?? []) })} />
+          </label>
+        </details>
+      </div>
+    );
+  };
+
+  const counts = u.points.reduce<Record<string, number>>((a, p) => {
+    const r = row(p.point.code);
+    const L = r.ni ? null : r.rep ? 0 : toNumber(r.L);
+    const k = r.rep ? 'rep' : r.ni ? 'ni' : L == null ? 'falta' : statusOf(L, p.point);
+    a[k] = (a[k] ?? 0) + 1;
+    return a;
+  }, {});
+
   return (
     <div className="stack insp-form">
       <div className="page-head">
         <div>
-          <div className="crumbs no-print">
-            <a href={href.flota()}>{db.fleet}</a>
-            <span>/</span>
-            <span>Registrar inspección</span>
-          </div>
-          <h1>Inspección estructural · {u.model}</h1>
-          <p className="no-print">Réplica del formato de campo. Al guardar, la inspección se agrega al historial y todo se recalcula.</p>
+          <h1>Registrar inspección</h1>
+          <p className="no-print">
+            {u.unitId} · {u.model}
+          </p>
         </div>
-        <div className="row no-print">
-          <button className="btn" onClick={() => window.print()}>
-            <Icon name="print" />
-            Imprimir formato
-          </button>
-          <button className="btn primary" onClick={save} disabled={saving}>
-            {saving ? 'Guardando…' : 'Guardar inspección'}
-          </button>
-        </div>
+        <button className="btn ghost no-print" onClick={() => window.print()}>
+          <Icon name="print" />
+          Imprimir formato
+        </button>
       </div>
 
-      <Panel title="Encabezado">
-        <div className="form-grid">
+      <ol className="wz-steps no-print">
+        {steps.map((s, i) => (
+          <li key={s.t} className={i === step ? 'on' : s.ok && i < step ? 'done' : ''}>
+            <button type="button" onClick={() => go(i)} aria-current={i === step ? 'step' : undefined}>
+              <span className="wz-n">{s.ok && i !== step && i < last ? '✓' : i + 1}</span>
+              <span>{s.t}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+
+      <section className={`panel${step === 0 ? '' : ' wz-hide'}`}>
+        <div className="panel-h">
+          <h2>1. Datos de la inspección</h2>
+        </div>
+        <div className="panel-b form-grid">
           <label className="f">
             Fecha
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -184,11 +269,9 @@ export function InspectionForm({ unitId }: { unitId: string }) {
             </select>
           </label>
           <label className="f">
-            Horas (horómetro)
+            Horómetro (h)
             <input inputMode="decimal" placeholder={estimate ? `${estimate} (estimado)` : ''} value={hours} onChange={(e) => setHours(e.target.value)} />
-            <span className="tiny muted">
-              Última: {fmt(lastH, 1)} h el {fmtDate(u.nowDate)}. Estimado {estimate || '—'} h con {fmt(u.usage, 1)} h/día.
-            </span>
+            <span className="f-hint">Última: {fmt(lastH, 1)} h</span>
           </label>
           <label className="f">
             Inspector
@@ -199,158 +282,116 @@ export function InspectionForm({ unitId }: { unitId: string }) {
               ))}
             </datalist>
           </label>
-          <label className="f">
-            Zonas
-            <input value={`${zones.length} zonas · ${u.points.length} puntos`} disabled />
-          </label>
         </div>
-        <p className="tiny muted" style={{ margin: '10px 0 0' }}>
-          NOTA: con el equipo armado algunas áreas quedan ocultas y no son inspeccionables. Lo reportado se refiere a las zonas con acceso.
-        </p>
-      </Panel>
-
-      <div className="grid-2">
-        <Panel title="Criterios">
-          <table className="t">
-            <tbody>
-              {CRITERIA.map((c) => (
-                <tr key={c.s}>
-                  <td style={{ width: 120 }}>
-                    <StatusPill status={c.s} />
-                  </td>
-                  <td className="small">{c.t}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
-        <Panel title="Observaciones generales de la inspección">
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={5} style={{ width: '100%' }} placeholder="Condiciones de la inspección, accesos, limpieza…" />
-        </Panel>
-      </div>
+        {tried && headErrors.length > 0 && step === 0 && (
+          <div className="panel-b" style={{ paddingTop: 0 }}>
+            {headErrors.map((e) => (
+              <div key={e} className="f-err">
+                {e}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {zones.map((z, zi) => {
         const zp = u.points.filter((p) => p.point.zone === z.id);
         return (
-          <Panel key={z.id} title={`Zona ${zi + 1}: ${z.name}`} className="insp-zone" tight>
-            <div className="table-wrap">
-              <table className="t insp-table">
-                <thead>
-                  <tr>
-                    <th>Código</th>
-                    <th className="r">C / D (mm)</th>
-                    <th className="r">L anterior</th>
-                    <th>L actual (mm)</th>
-                    <th>Estado</th>
-                    <th>N/I</th>
-                    <th>Reparada</th>
-                    <th>Comentario y fotos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {zp.map((p) => {
-                    const r = row(p.point.code);
-                    const prev = [...p.series].reverse().find((s) => s.length != null);
-                    const L = r.ni ? null : r.rep ? 0 : toNumber(r.L);
-                    const st = r.ni ? 'ni' : L == null ? null : statusOf(L, p.point);
-                    const drop = !r.rep && L != null && prev?.length != null && L < prev.length;
-                    const miss = tried && !r.ni && !r.rep && L == null;
-                    return (
-                      <tr key={p.point.key}>
-                        <td>
-                          <div className="code">{p.point.code}</div>
-                          <div className="tiny muted" style={{ maxWidth: 200 }}>
-                            {p.point.description}
-                          </div>
-                        </td>
-                        <td className="r tab">
-                          {p.point.caution} / {p.point.danger}
-                        </td>
-                        <td className="r tab">{prev ? `${prev.length}` : '—'}</td>
-                        <td>
-                          <input
-                            data-l={p.point.code}
-                            inputMode="decimal"
-                            value={r.rep ? '0' : r.ni ? '' : r.L}
-                            disabled={r.ni || r.rep}
-                            onChange={(e) => setRow(p.point.code, { L: e.target.value })}
-                            aria-label={`L actual ${p.point.code}`}
-                            aria-invalid={miss}
-                            style={{ width: 90, textAlign: 'right', borderColor: miss ? 'var(--alerta)' : undefined }}
-                          />
-                        </td>
-                        <td style={{ minWidth: 150 }}>
-                          {r.rep ? <span className="st">Reparada</span> : st ? <StatusPill status={st} /> : <span className="muted">—</span>}
-                          {st === 'critico' && <div className="tiny" style={{ color: 'var(--critico)', marginTop: 4, fontWeight: 600 }}>Reparar antes de continuar operando</div>}
-                          {drop && (
-                            <div className="tiny" style={{ color: 'var(--alerta)', marginTop: 4 }}>
-                              Menor que la anterior ({prev!.length} mm) sin reparación: verifique.
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <input type="checkbox" checked={r.ni} onChange={(e) => setRow(p.point.code, { ni: e.target.checked, rep: false })} aria-label={`${p.point.code} no inspeccionado`} />
-                        </td>
-                        <td>
-                          <input type="checkbox" checked={r.rep} onChange={(e) => setRow(p.point.code, { rep: e.target.checked, ni: false })} aria-label={`${p.point.code} reparada`} />
-                        </td>
-                        <td style={{ minWidth: 230 }}>
-                          <input value={r.comment} onChange={(e) => setRow(p.point.code, { comment: e.target.value })} placeholder="Comentario" style={{ width: '100%' }} />
-                          <label className="tiny muted no-print" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, cursor: 'pointer' }}>
-                            <Icon name="camera" size={13} />
-                            {r.files.length ? `${r.files.length} foto(s)` : 'Agregar fotos'}
-                            <input type="file" accept="image/*" multiple hidden onChange={(e) => setRow(p.point.code, { files: Array.from(e.target.files ?? []) })} />
-                          </label>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div className="grid-2" style={{ padding: 18 }}>
+          <section key={z.id} className={`panel insp-zone${step === zi + 1 ? '' : ' wz-hide'}`}>
+            <div className="panel-h">
               <div>
-                <div className="small muted" style={{ marginBottom: 6 }}>
-                  Ubicación de los puntos de inspección
-                </div>
-                <Schematic image={z.image} points={zp} />
+                <h2>
+                  {zi + 2}. {z.name}
+                </h2>
+                <p>{zp.length} puntos. Mide cada grieta y escribe su largo.</p>
               </div>
-              <div className="stack" style={{ gap: 6 }}>
-                <span className="small muted">Registro fotográfico</span>
-                <div className="small">
-                  {zp.flatMap((p) => row(p.point.code).files.map((f) => `${p.point.code}: ${f.name}`)).join(' · ') || <span className="muted">Sin fotos adjuntas.</span>}
-                </div>
-                <label className="f" style={{ marginTop: 8 }}>
-                  Observaciones de la zona
-                  <textarea value={zoneNotes[z.id] ?? ''} rows={4} onChange={(e) => setZoneNotes((n) => ({ ...n, [z.id]: e.target.value }))} />
+            </div>
+            <div className="panel-b wz-zone">
+              <div className="wz-pts">{zp.map(pointCard)}</div>
+              <div className="wz-side">
+                <Schematic image={z.image} points={zp} />
+                <label className="f" style={{ marginTop: 12 }}>
+                  Observaciones de la zona (opcional)
+                  <textarea value={zoneNotes[z.id] ?? ''} rows={3} onChange={(e) => setZoneNotes((n) => ({ ...n, [z.id]: e.target.value }))} />
                 </label>
               </div>
             </div>
-          </Panel>
+          </section>
         );
       })}
 
-      {tried && errors.length > 0 && (
-        <div className="notice alerta no-print">
-          <div>
-            <b>No se puede guardar todavía:</b>
-            <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-              {errors.map((e) => (
-                <li key={e}>{e}</li>
-              ))}
-            </ul>
-          </div>
+      <section className={`panel no-print${step === last ? '' : ' wz-hide'}`}>
+        <div className="panel-h">
+          <h2>{last + 1}. Revisar y guardar</h2>
         </div>
-      )}
-      {saveErr && <div className="notice critico no-print">{saveErr}</div>}
-      <div className="row no-print" style={{ justifyContent: 'flex-end' }}>
-        <button className="btn primary" onClick={save} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar inspección'}
+        <div className="panel-b stack" style={{ gap: 14 }}>
+          <div className="row" style={{ gap: 8 }}>
+            {(['critico', 'alerta', 'normal', 'sin', 'ni'] as const).map((k) =>
+              counts[k] ? (
+                <StatusPill key={k} status={k} label={`${counts[k]} ${STATUS_LABEL[k]}`} />
+              ) : null,
+            )}
+            {counts.rep ? <span className="st">{counts.rep} reparada(s)</span> : null}
+            {counts.falta ? <span className="st st-sin">{counts.falta} sin dato</span> : null}
+          </div>
+          {errors.length > 0 ? (
+            <div className="notice alerta">
+              <StatusIconSmall />
+              <div>
+                <b>Falta completar:</b>
+                <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                  {errors.map((e) => (
+                    <li key={e}>{e}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <div className="notice normal">
+              <StatusIconSmall ok />
+              <div>
+                <b>Todo listo.</b> {fmtDate(date)} · {fmt(h, 1)} h · {inspector}
+              </div>
+            </div>
+          )}
+          <label className="f">
+            Observaciones generales (opcional)
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Condiciones, accesos, limpieza…" />
+          </label>
+          {saveErr && <div className="notice critico">{saveErr}</div>}
+        </div>
+      </section>
+
+      <div className="wz-nav no-print">
+        <button className="btn" onClick={() => go(step - 1)} disabled={step === 0}>
+          <Icon name="left" />
+          Atrás
         </button>
+        <span className="small muted">
+          Paso {step + 1} de {steps.length}
+        </span>
+        {step < last ? (
+          <button className="btn primary" onClick={() => go(step + 1)}>
+            Siguiente
+            <Icon name="right" />
+          </button>
+        ) : (
+          <button className="btn primary" onClick={save} disabled={saving}>
+            {saving ? 'Guardando…' : 'Guardar inspección'}
+          </button>
+        )}
       </div>
       <p className="tiny muted print-only">
         Criterios: {Object.values(STATUS_LABEL).join(' · ')}. Firma del inspector: ____________________
       </p>
     </div>
+  );
+}
+
+function StatusIconSmall({ ok }: { ok?: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 12 12" aria-hidden="true">
+      {ok ? <circle cx="6" cy="6" r="5" fill="var(--normal)" /> : <path d="M6 0.8 11.4 10.6H0.6Z" fill="var(--alerta)" />}
+    </svg>
   );
 }
