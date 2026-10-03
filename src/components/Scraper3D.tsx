@@ -7,7 +7,7 @@ import type { PointAnalysis } from '../lib/analysis';
 import { STATUS_LABEL } from '../lib/analysis';
 import type { Status } from '../types';
 
-const HEX: Record<Status, number> = { critico: 0xd03b3b, alerta: 0xfab219, normal: 0x0ca30c, sin: 0x8e9ba5, ni: 0x5b6670 };
+const HEX: Record<Status, number> = { critico: 0xd03b3b, alerta: 0xfab219, normal: 0x0ca30c, sin: 0xe6ecef, ni: 0x5b6670 };
 
 interface Props {
   points: PointAnalysis[];
@@ -268,9 +268,29 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
     ro.observe(el);
 
     let raf = 0;
+    let frame = 0;
     const v = new THREE.Vector3();
+    const occ = new THREE.Raycaster();
+    const solids: THREE.Object3D[] = [];
+    scene.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh && !markers.some((m) => m.mesh === o || m.halo === o)) solids.push(o);
+    });
     const tick = (t: number) => {
       controls.update();
+      // Cada pocos cuadros, las etiquetas de puntos tapados por la estructura se atenúan.
+      if (frame++ % 6 === 0) {
+        for (const m of markers) {
+          const dir = m.mesh.position.clone().sub(camera.position);
+          const dist = dir.length();
+          occ.set(camera.position, dir.normalize());
+          occ.far = dist - 0.4;
+          const hidden = occ.intersectObjects(solids, false).some((h) => {
+            const mt = (h.object as THREE.Mesh).material as THREE.Material;
+            return !(mt.transparent && mt.opacity < 0.5);
+          });
+          m.label.style.opacity = hidden ? '0.35' : '1';
+        }
+      }
       for (const m of markers) {
         if (m.halo && !reduce) {
           const k = 1.6 + 0.6 * (0.5 + 0.5 * Math.sin(t / (m.p.status === 'critico' ? 260 : 420)));

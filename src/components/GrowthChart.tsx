@@ -71,7 +71,7 @@ export function GrowthChart({ pa, future = [], nowHours, nowDate, usage, isPast,
   const maxL = Math.max(...shown.map((s) => s.length ?? 0), ...(isPast ? fut.map((s) => s.length ?? 0) : []), 0);
   const yTop = Math.max(p.danger * 1.25, maxL * 1.08, 10);
 
-  const m = { l: 56, r: 92, t: 18, b: 52 };
+  const m = w < 520 ? { l: 46, r: 66, t: 18, b: 52 } : { l: 56, r: 92, t: 18, b: 52 };
   const W = Math.max(w, 320);
   const H = height;
   const iw = W - m.l - m.r;

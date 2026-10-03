@@ -36,6 +36,7 @@ for (const [vname, width, theme] of variants) {
   for (const [name, hash] of ROUTES) {
     if (only && !only.includes(name)) continue;
     await page.goto(base + hash);
+    await page.reload();
     await page.waitForSelector('.page > *:not(.loading)', { timeout: 15000 });
     await page.waitForTimeout(700);
     const sw = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
