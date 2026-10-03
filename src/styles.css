@@ -947,3 +947,125 @@ a.pill:hover {
     background: #fff !important;
   }
 }
+
+.lbl3d {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font: 600 12px var(--fuente-c);
+  color: var(--tinta);
+  background: color-mix(in srgb, var(--sup) 82%, transparent);
+  border: 1px solid var(--linea2);
+  border-radius: 4px;
+  padding: 0 5px;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+/* ---------------------------------------------------------------- panel de IA */
+
+.ai-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(5, 9, 12, 0.55);
+  display: flex;
+  justify-content: flex-end;
+}
+.ai-panel {
+  width: min(620px, 100vw);
+  height: 100%;
+  background: var(--sup);
+  border-left: 1px solid var(--linea2);
+  display: flex;
+  flex-direction: column;
+}
+.ai-head,
+.ai-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--linea);
+  flex-wrap: wrap;
+}
+.ai-foot {
+  border-top: 1px solid var(--linea);
+  border-bottom: 0;
+}
+.ai-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+}
+.ai-wait::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: var(--acento);
+  animation: parpadeo 1s infinite;
+}
+@keyframes parpadeo {
+  50% {
+    opacity: 0.2;
+  }
+}
+.ai-sent {
+  margin-top: 18px;
+  font-size: 13px;
+}
+.ai-sent summary {
+  cursor: pointer;
+  color: var(--tinta2);
+}
+.ai-sent pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 11.5px;
+  background: var(--sup2);
+  border: 1px solid var(--linea);
+  border-radius: 6px;
+  padding: 10px 12px;
+  max-height: 340px;
+  overflow: auto;
+  color: var(--tinta2);
+}
+.md {
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.md h2,
+.md h3,
+.md h4 {
+  margin: 18px 0 6px;
+}
+.md h2:first-child,
+.md h3:first-child {
+  margin-top: 0;
+}
+.md p {
+  margin: 0 0 10px;
+}
+.md ul,
+.md ol {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+.md li {
+  margin-bottom: 4px;
+}
+.md code {
+  background: var(--sup3);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.md hr {
+  border: 0;
+  border-top: 1px solid var(--linea);
+  margin: 14px 0;
+}

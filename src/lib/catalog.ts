@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
 export const AI_MODELS = [
   { id: 'claude-opus-5-5', name: 'Claude Opus 5.5 (más capaz)' },
   { id: 'claude-sonnet-5', name: 'Claude Sonnet 5 (equilibrado)' },
-  { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5 (rápido)' },
+  { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5 (rápido)' },
 ];
 
 /** Criticidad (consecuencia C) por defecto según el prefijo de la zona. */

@@ -10,6 +10,7 @@
     "motor": "tsx tools/probar-motor.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@fontsource/barlow": "^5.3.0",
     "@fontsource/barlow-condensed": "^5.3.0",
     "idb-keyval": "^6.3.0",

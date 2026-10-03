@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useStore } from './store';
 import { href, useRoute, type Route } from './router';
 import { Icon, Logo } from './components/ui';
@@ -10,9 +10,6 @@ import { History } from './views/History';
 import { WorkOrders } from './views/WorkOrders';
 import { InspectionForm } from './views/InspectionForm';
 import { Data } from './views/Data';
-
-// El 3D se carga aparte para no frenar la primera visita.
-export const Scraper3D = lazy(() => import('./components/Scraper3D'));
 
 function Nav({ route }: { route: Route }) {
   const db = useStore((s) => s.db);
