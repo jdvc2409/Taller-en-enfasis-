@@ -109,6 +109,16 @@ export function runQuality(input: QualityInput): QualityResult {
       }
     }
 
+    // Marcas por medida. Se recorre dos veces: la primera solo identifica atípicos, que no deben
+    // sesgar el ritmo típico; la segunda marca todo con el umbral de "salto" ya calculado.
+    const unitInsp = inspections.filter((i) => i.unit === unit);
+    flagMeasures(unitInsp, unitPoints, evById, badEvents, Infinity);
+    const atypical = new Set(unitInsp.filter((i) => i.flags.some((f) => f.type === 'atipico')).map((i) => i.id));
+    unitInsp.forEach((i) => {
+      i.flags = [];
+      i.excluded = false;
+    });
+
     // Ritmo típico del equipo (para "salto" y para proyectar con una sola medida).
     const rates: number[] = [];
     for (const p of unitPoints) {
@@ -119,18 +129,34 @@ export function runQuality(input: QualityInput): QualityResult {
           length: i.length,
           repaired: i.repaired,
           hours: evById.get(`${unit}|${i.date}`)?.hours ?? null,
-          skip: badEvents.has(`${unit}|${i.date}`),
+          skip: badEvents.has(`${unit}|${i.date}`) || atypical.has(i.id),
         }));
       rates.push(...growthPairs(seq));
     }
     typicalRate[unit] = rates.length ? median(rates) : NaN;
     const jumpLimit = Math.max(100, 4 * (isFinite(typicalRate[unit]) ? typicalRate[unit] : 0));
+    flagMeasures(unitInsp, unitPoints, evById, badEvents, jumpLimit);
+  }
 
-    // Marcas por medida.
+  // La decisión manual del usuario prevalece.
+  for (const m of inspections) {
+    if (m.override === 'include') m.excluded = false;
+    else if (m.override === 'exclude') m.excluded = true;
+  }
+  return { events, inspections, typicalRate, medianDays };
+}
+
+function flagMeasures(
+  unitInsp: Inspection[],
+  unitPoints: Point[],
+  evById: Map<string, InspectionEvent>,
+  badEvents: Set<string>,
+  jumpLimit: number,
+) {
+  {
     for (const p of unitPoints) {
-      const seq = inspections
-        .filter((i) => i.unit === unit && i.code === p.code)
-        .sort((a, b) => a.date.localeCompare(b.date));
+      const unit = p.unit;
+      const seq = unitInsp.filter((i) => i.code === p.code).sort((a, b) => a.date.localeCompare(b.date));
       let last: { L: number; h: number | null; date: string } | null = null;
       for (let k = 0; k < seq.length; k++) {
         const m = seq[k];
@@ -194,11 +220,4 @@ export function runQuality(input: QualityInput): QualityResult {
       }
     }
   }
-
-  // La decisión manual del usuario prevalece.
-  for (const m of inspections) {
-    if (m.override === 'include') m.excluded = false;
-    else if (m.override === 'exclude') m.excluded = true;
-  }
-  return { events, inspections, typicalRate, medianDays };
 }

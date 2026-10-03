@@ -59,8 +59,9 @@ export function toNumber(v: unknown): number | null {
     if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.');
     else s = s.replace(/,/g, '');
   } else if (hasComma) {
-    s = /^-?\d{1,3}(,\d{3}){2,}$/.test(s) ? s.replace(/,/g, '') : s.replace(',', '.');
-  } else if (hasDot && /^-?\d{1,3}(\.\d{3}){2,}$/.test(s)) {
+    s = /^-?\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g, '') : s.replace(',', '.');
+  } else if (hasDot && /^-?\d{1,3}(\.\d{3})+$/.test(s)) {
+    // "1.100" o "55.696": separador de miles (las grietas se miden a 5 mm, nunca con 3 decimales).
     s = s.replace(/\./g, '');
   }
   const n = Number(s);
@@ -75,7 +76,11 @@ const str = (v: unknown) => (v == null ? '' : String(v).trim());
  */
 export const isRepairComment = (c: string) =>
   /reparad[oa]s?|soldad[oa]s?|reconstruid[oa]|reemplazad[oa]|se repar[oó]|se sold[oó]/i.test(c) &&
-  !/(hasta|sin|por|pendientes?|falta)\s+(de\s+)?repar|\bno\s+(se\s+)?(ha\s+)?(repar|sold)/i.test(c);
+  !/(hasta|sin|por|pendientes?|falta)\s+(de\s+)?repar|\bno\s+(se\s+)?(fue\s+|ha\s+(sido\s+)?|est[aá]\s+)?(repar|sold)/i.test(c) &&
+  !isUnverifiedRepair(c);
+
+/** Reparación parcial, provisional o sin END final: no se acepta como reparación (no abre ciclo nuevo). */
+export const isUnverifiedRepair = (c: string) => /parcial|provisional|temporal|sin\s+(end|ensayo|inspecci[oó]n final)/i.test(c);
 
 /** Comentario que indica fractura o grieta pasante: el punto es Crítico sin importar L. */
 export const isFractureComment = (c: string) => /fractur|pasante|no debe operar|fuera de servicio|rotura|roto\b/i.test(c);
@@ -213,13 +218,27 @@ export function parseWorkbook(data: ArrayBuffer | Uint8Array): ParsedWorkbook {
     }
     const unit = (c.equipo != null ? str(r[c.equipo]) : '') || readmeUnit || 'EQUIPO-1';
     const id = `${unit}|${code}|${date}`;
+    const rawL = r[c.largo];
+    const length = toNumber(rawL);
+    if (typeof rawL === 'string' && /^\s*\d{1,3}[.,]\d{3}\s*$/.test(rawL)) {
+      warnings.push(`Fila ${excelRow}: L actual "${rawL}" se leyó como ${length} mm (separador de miles). Verifíquelo.`);
+    }
     if (seen.has(id)) {
-      warnings.push(`Fila ${excelRow}: ${code} ${date} está repetido; se conservó el primero.`);
+      const prev = inspections.find((x) => x.id === id)!;
+      const comment = c.comentario != null ? str(r[c.comentario]) : '';
+      const isRep = length === 0 && isRepairComment(comment);
+      if (isRep && !prev.repaired) {
+        // Medida y reparación el mismo día: se conserva la reparación y se anota la medida previa.
+        prev.comment = `${comment} (antes de reparar: ${prev.length ?? 'N/I'} mm${prev.comment ? '; ' + prev.comment : ''})`;
+        prev.length = 0;
+        prev.repaired = true;
+        warnings.push(`Fila ${excelRow}: ${code} ${date} tiene medida y reparación el mismo día; se conservó la reparación y la medida quedó en el comentario.`);
+      } else {
+        warnings.push(`Fila ${excelRow}: ${code} ${date} está repetido; se conservó la fila ${prev.row}.`);
+      }
       continue;
     }
     seen.add(id);
-    const rawL = r[c.largo];
-    const length = toNumber(rawL);
     if (rawL != null && rawL !== '' && length == null) {
       warnings.push(`Fila ${excelRow}: L actual "${String(rawL)}" no es un número; se tomó como N/I.`);
     }
@@ -228,6 +247,9 @@ export function parseWorkbook(data: ArrayBuffer | Uint8Array): ParsedWorkbook {
     }
     const comment = c.comentario != null ? str(r[c.comentario]) : '';
     const L = length != null && length >= 0 ? length : null;
+    if (L === 0 && isUnverifiedRepair(comment)) {
+      warnings.push(`Fila ${excelRow}: "${comment}" no se tomó como reparación (parcial, provisional o sin END final). Confírmela antes de reiniciar el ciclo.`);
+    }
     const zona = c.zona != null ? str(r[c.zona]) : '';
     if (zona && !zoneOfCode.has(code)) zoneOfCode.set(code, zona);
     const desc = c.descripcion != null ? str(r[c.descripcion]) : '';
@@ -302,9 +324,13 @@ export function parseWorkbook(data: ArrayBuffer | Uint8Array): ParsedWorkbook {
   });
   const zoneIdOf = (code: string) => zones.find((z) => z.name === zoneNameOf(code))!.id;
 
+  // Criticidad propia por punto solo para la flota 631G (en otra flota los códigos pueden significar otra cosa).
+  const is631 = /631/.test(fleet) || units.some((u) => u.startsWith('631'));
   const points: Point[] = [];
   for (const unit of units) {
-    for (const code of codes) {
+    const own = new Set(inspections.filter((i) => i.unit === unit).map((i) => i.code));
+    const unitCodes = units.length === 1 ? codes : codes.filter((cd) => own.has(cd));
+    for (const code of unitCodes) {
       const p = pointsByCode.get(code);
       if (!p) warnings.push(`${code} aparece en el historial pero no en la hoja Puntos: defina sus límites en Datos.`);
       points.push({
@@ -315,9 +341,9 @@ export function parseWorkbook(data: ArrayBuffer | Uint8Array): ParsedWorkbook {
         description: p?.descripcion || descOfCode.get(code) || '',
         caution: p?.caution ?? 0,
         danger: p?.danger ?? 0,
-        pos2d: POS2D[code],
-        criticality: POINT_CRITICALITY[code]?.criticality,
-        criticalityReason: POINT_CRITICALITY[code]?.reason,
+        pos2d: is631 ? POS2D[code] : undefined,
+        criticality: is631 ? POINT_CRITICALITY[code]?.criticality : undefined,
+        criticalityReason: is631 ? POINT_CRITICALITY[code]?.reason : undefined,
       });
     }
   }

@@ -32,13 +32,15 @@ export function addDays(date: string, days: number) {
 }
 
 /** t de Student de dos colas al 90 % (t_0.95) por grados de libertad. */
-const T90: [number, number][] = [
-  [1, 6.314], [2, 2.92], [3, 2.353], [4, 2.132], [5, 2.015], [6, 1.943], [7, 1.895], [8, 1.86], [9, 1.833],
-  [10, 1.812], [12, 1.782], [15, 1.753], [20, 1.725], [30, 1.697], [60, 1.671], [Infinity, 1.645],
+const T90 = [
+  6.314, 2.92, 2.353, 2.132, 2.015, 1.943, 1.895, 1.86, 1.833, 1.812, 1.796, 1.782, 1.771, 1.761, 1.753, 1.746, 1.74,
+  1.734, 1.729, 1.725, 1.721, 1.717, 1.714, 1.711, 1.708, 1.706, 1.703, 1.701, 1.699, 1.697,
 ];
 export function t90(df: number) {
-  for (const [d, t] of T90) if (df <= d) return t;
-  return 1.645;
+  if (df < 1) return Infinity;
+  if (df <= 30) return T90[Math.floor(df) - 1];
+  if (df <= 60) return 1.684; // gl = 40, conservador
+  return df <= 120 ? 1.671 : 1.645;
 }
 /** La banda se limita a t = 3: con n = 3 la t vale 6,3 y la banda explota. */
 export const T_CAP = 3;
@@ -50,7 +52,12 @@ export interface SeriesItem {
   date: string;
   hours: number | null;
   length: number | null;
+  /** Estado de la medida tal como se midió. */
   status: Status;
+  /** Mayor medida del ciclo hasta esta fecha (una grieta no se cierra sin reparación). */
+  effLength: number | null;
+  /** Estado efectivo: con la mayor medida del ciclo, y Crítico si hay fractura reportada. */
+  effStatus: Status;
   repaired: boolean;
   excluded: boolean;
   override?: 'include' | 'exclude';
@@ -63,7 +70,7 @@ export interface SeriesItem {
   eventFlags: Flag[];
 }
 
-export type FitModel = 'lineal' | 'exponencial' | 'dos-medidas' | 'una-medida' | 'estable' | 'sin-datos';
+export type FitModel = 'lineal' | 'exponencial' | 'dos-medidas' | 'una-medida' | 'ritmo-referencia' | 'estable' | 'sin-datos';
 
 export interface Fit {
   model: FitModel;
@@ -174,6 +181,8 @@ export interface UnitAnalysis {
   unitId: string;
   model: string;
   nowHours: number | null;
+  /** El horómetro actual se estimó (la última inspección no tiene horómetro válido). */
+  nowEstimated: boolean;
   nowDate: string | null;
   firstHours: number | null;
   firstDate: string | null;
@@ -274,8 +283,8 @@ export function fitCycle(
           fallbackRate,
           0.5,
           2,
-          'una-medida',
-          `${why} Una grieta de fatiga no se acorta, así que se proyecta desde la última medida con ${fallbackSource} (${fallbackRate.toFixed(1)} mm/100 h), banda ×0,5 a ×2. Confianza baja: verificar en campo.`,
+          'ritmo-referencia',
+          `${why} Una grieta de fatiga no se acorta, así que se proyecta desde la última medida con ${fallbackSource} (${fallbackRate.toFixed(1).replace('.', ',')} mm/100 h), banda ×0,5 a ×2. Confianza baja: verificar en campo.`,
         )
       : stable(`${why} No hay ritmo de referencia para proyectar: mantener seguimiento y verificar la medida en campo.`);
 
@@ -286,14 +295,14 @@ export function fitCycle(
       0.5,
       2,
       'una-medida',
-      `Una sola medida en el ciclo actual: se proyecta con ${fallbackSource} (${fallbackRate.toFixed(1)} mm/100 h), banda ×0,5 a ×2. Confianza baja.`,
+      `Una sola medida en el ciclo actual: se proyecta con ${fallbackSource} (${fallbackRate.toFixed(1).replace('.', ',')} mm/100 h), banda ×0,5 a ×2. Confianza baja.`,
     );
   }
   if (n === 2) {
     const [p, q] = used;
     const r = q.hours > p.hours ? ((q.length - p.length) / (q.hours - p.hours)) * 100 : 0;
     if (r <= 0) return noGrowth(`Dos medidas sin crecimiento (${p.length} → ${q.length} mm).`);
-    return linearFrom(r, 0.6, 1.6, 'dos-medidas', `Recta entre 2 medidas (${r.toFixed(1)} mm/100 h), banda ×0,6 a ×1,6 del ritmo. Confianza baja.`);
+    return linearFrom(r, 0.6, 1.6, 'dos-medidas', `Recta entre 2 medidas (${r.toFixed(1).replace('.', ',')} mm/100 h), banda ×0,6 a ×1,6 del ritmo. Confianza baja.`);
   }
 
   // n ≥ 3: lineal y exponencial, h desde la primera medida.
@@ -333,11 +342,11 @@ export function fitCycle(
       center: (h) => Math.exp(c(h)),
       upper: (h) => Math.exp(c(h) + half(h)),
       lower: (h) => Math.exp(c(h) - half(h)),
-      note: `Ajuste exponencial (ln L = a + b·h) con ${n} medidas del ciclo actual; R² = ${r2?.toFixed(2) ?? '—'}. Se eligió porque su error es menor que 0,9 × el del lineal: crecimiento acelerado coherente con la ley de Paris (da/dN ∝ ΔK^m). Banda de predicción del 90 % (t = ${t.toFixed(2)}).`,
+      note: `Ajuste exponencial (ln L = a + b·h) con ${n} medidas del ciclo actual; R² = ${r2 == null ? '—' : r2.toFixed(3).replace('.', ',')}. Se eligió porque su error es menor que 0,9 × el del lineal: crecimiento acelerado coherente con la ley de Paris (da/dN ∝ ΔK^m). Banda de predicción del 90 % (t = ${t.toFixed(2).replace('.', ',')}).`,
     };
   }
   if (lin.b <= 0) {
-    return noGrowth(`El ajuste lineal con ${n} medidas no tiene pendiente positiva (${(lin.b * 100).toFixed(1)} mm/100 h).`);
+    return noGrowth(`El ajuste lineal con ${n} medidas no tiene pendiente positiva (${(lin.b * 100).toFixed(1).replace('.', ',')} mm/100 h).`);
   }
   const se = Math.max(Math.sqrt(sseLin / (n - 2)), RES_MM);
   const half = (h: number) => t * se * Math.sqrt(1 + 1 / n + (h - h0 - lin.mx) ** 2 / lin.sxx);
@@ -357,7 +366,7 @@ export function fitCycle(
     center: c,
     upper: (h) => c(h) + half(h),
     lower: (h) => c(h) - half(h),
-    note: `Ajuste lineal (L = a + b·h) con ${n} medidas del ciclo actual; R² = ${r2?.toFixed(2) ?? '—'}; ${(lin.b * 100).toFixed(1)} mm/100 h. Banda de predicción del 90 % (t de Student con ${n - 2} gl${t90(n - 2) > T_CAP ? ', limitada a 3' : ''}; error residual ${se.toFixed(1)} mm).`,
+    note: `Ajuste lineal (L = a + b·h) con ${n} medidas del ciclo actual; R² = ${r2 == null ? '—' : r2.toFixed(3).replace('.', ',')}; ${(lin.b * 100).toFixed(1).replace('.', ',')} mm/100 h. Banda de predicción del 90 % (t de Student con ${n - 2} gl${t90(n - 2) > T_CAP ? ', limitada a 3' : ''}; error residual ${se.toFixed(1).replace('.', ',')} mm).`,
   };
 }
 
@@ -434,18 +443,36 @@ function analyzePoint(
   usage: number | null,
   typicalRate: number | null,
   settings: Settings,
+  hoursOf: (date: string) => number | null,
 ): PointAnalysis {
   const seq = insps.filter((i) => i.code === point.code).sort((a, b) => a.date.localeCompare(b.date));
+  // Estado efectivo: una grieta no se cierra sola. Dentro de un ciclo (entre reparaciones) se usa la mayor
+  // medida válida hasta la fecha (sin contar atípicos), y una fractura reportada deja el punto Crítico.
+  // Solo una reparación baja el estado. Las exclusiones manuales afectan la tendencia, no el estado.
   let cycle = 0;
+  let runMax = 0;
+  let runFracture = false;
   const series: SeriesItem[] = seq.map((i) => {
-    if (i.repaired) cycle++;
+    if (i.repaired) {
+      cycle++;
+      runMax = 0;
+      runFracture = false;
+    }
     const ev = evById.get(`${i.unit}|${i.date}`);
+    const hours = hoursOf(i.date);
+    const atip = i.flags.some((f) => f.type === 'atipico');
+    if (i.length != null && !i.repaired && !atip) runMax = Math.max(runMax, i.length);
+    if (!i.repaired && isFractureComment(i.comment)) runFracture = true;
+    const effLength = i.length == null ? null : i.repaired ? 0 : Math.max(i.length, runMax);
+    const effStatus: Status = i.length == null ? 'ni' : runFracture ? 'critico' : statusOf(effLength, point);
     return {
       id: i.id,
       date: i.date,
-      hours: ev?.hours ?? null,
+      hours,
       length: i.length,
       status: statusOf(i.length, point),
+      effLength,
+      effStatus,
       repaired: i.repaired,
       excluded: i.excluded,
       override: i.override,
@@ -460,47 +487,29 @@ function analyzePoint(
   });
   const valid = series.filter((s) => s.length != null);
   const included = valid.filter((s) => !s.excluded);
-
-  // Estado actual: última medida incluida; si una medida posterior excluida es peor, manda la peor (criterio conservador).
-  const lastInc = included[included.length - 1];
-  let status: Status = lastInc?.status ?? 'ni';
-  let length = lastInc?.length ?? null;
-  let lastDate = lastInc?.date ?? null;
-  let lastHours = lastInc?.hours ?? null;
-  let statusNote = '';
-  const laterExcluded = valid.filter((s) => s.excluded && (!lastInc || s.date > lastInc.date));
-  const worstLater = laterExcluded.sort((a, b) => STATUS_RANK[b.status] - STATUS_RANK[a.status])[0];
-  if (worstLater && STATUS_RANK[worstLater.status] > STATUS_RANK[status]) {
-    status = worstLater.status;
-    length = worstLater.length;
-    lastDate = worstLater.date;
-    lastHours = worstLater.hours;
-    statusNote = `El estado usa la medida del ${worstLater.date} (${worstLater.length} mm) aunque esté excluida de la tendencia, porque es la más desfavorable.`;
-  }
   const curCycle = series.length ? series[series.length - 1].cycle : 0;
-  // Una baja sin reparación no mejora el estado: se usa la mayor medida del ciclo hasta confirmarla en campo.
-  if (lastInc && lastInc.flags.some((f) => f.type === 'baja') && !worstLater) {
-    const prevMax = included
-      .filter((s) => s.cycle === lastInc.cycle && s.date < lastInc.date)
-      .reduce((m, s) => Math.max(m, s.length ?? 0), 0);
-    if (prevMax > (lastInc.length ?? 0)) {
-      const st = statusOf(prevMax, point);
-      if (STATUS_RANK[st] > STATUS_RANK[status]) status = st;
-      length = prevMax;
-      statusNote = `La última medida (${lastInc.length} mm) baja sin reparación registrada; hasta confirmarla en campo el estado usa la mayor medida del ciclo (${prevMax} mm).`;
-    }
-  }
-  // Fractura o grieta pasante reportada en el ciclo actual: Crítico sin importar L.
-  const fracture = series.find((s) => s.cycle === curCycle && isFractureComment(s.comment));
+
+  const lastValid = valid[valid.length - 1];
+  let status: Status = lastValid?.effStatus ?? 'ni';
+  const length = lastValid?.effLength ?? null;
+  const lastDate = lastValid?.date ?? null;
+  const lastHours = lastValid?.hours ?? null;
+  const notes: string[] = [];
+  const fracture = series.find((s) => s.cycle === curCycle && !s.repaired && isFractureComment(s.comment));
   const fractured = !!fracture;
-  if (fracture && status !== 'critico') {
+  if (lastValid && lastValid.effLength! > lastValid.length!) {
+    notes.push(
+      `La última medida (${lastValid.length} mm) es menor que la mayor del ciclo sin reparación registrada; hasta confirmarla en campo el estado usa ${lastValid.effLength} mm.`,
+    );
+  }
+  if (lastValid?.excluded) notes.push('La última medida está excluida de la tendencia, pero sigue contando para el estado.');
+  if (fracture) {
     status = 'critico';
-    statusNote = `${statusNote} El inspector reportó "${fracture.comment}" el ${fracture.date}: Crítico por criterio del formato aunque L no llegue a Danger.`.trim();
+    notes.push(`El inspector reportó "${fracture.comment}" el ${fracture.date}: Crítico por criterio del formato.`);
   }
   const lastNI = !!lastEvent && !seq.some((i) => i.date === lastEvent.date && i.length != null);
-  if (lastNI && lastEvent) {
-    statusNote = `${statusNote} No se inspeccionó el ${lastEvent.date}: el estado corresponde a la medida del ${lastDate ?? '—'}.`.trim();
-  }
+  if (lastNI && lastEvent) notes.push(`No se inspeccionó el ${lastEvent.date}: el estado corresponde a la medida del ${lastDate ?? '—'}.`);
+  const statusNote = notes.join(' ');
   const hasCrack = (length != null && length > 0) || fractured;
 
   // Ciclo actual y ritmo histórico del punto.
@@ -553,9 +562,9 @@ function analyzePoint(
   let dangerEpisodes = 0;
   let open: { start: number; last: number; before: number } | null = null;
   let lastBelow: number | null = null;
-  for (const s of included) {
+  for (const s of valid) {
     if (s.hours == null) continue;
-    if (s.status === 'critico') {
+    if (s.effStatus === 'critico') {
       if (!open) {
         open = { start: s.hours, last: s.hours, before: lastBelow ?? s.hours };
         dangerEpisodes++;
@@ -597,13 +606,21 @@ function analyzePoint(
   const urgency = hasCrack || status === 'critico' ? urgencyFrom(status, Tp) : 1;
   const consequence = point.criticality ?? zone.criticality;
   const score = urgency * consequence;
-  const [priority, priorityName] = priorityFrom(status, score);
+  const tooClose = status !== 'critico' && hasCrack && Tp != null && Tp <= 200;
+  let [priority, priorityName] = priorityFrom(status, score);
+  // Si la acción es reparar ya, restringir o inspeccionar antes de operar, la prioridad no puede ser menor que P1.
+  if (unverified || tooClose) [priority, priorityName] = ['P1', 'Inmediata'];
   const cWhy = point.criticality != null ? ` (consecuencia propia del punto: ${point.criticalityReason ?? 'definida en Datos'})` : '';
   const priorityWhy =
     status === 'critico'
       ? `Crítico${fractured ? ' (fractura reportada)' : ' (L ≥ Danger)'}: P1 por criterio del formato. Urgencia ${urgency} × consecuencia ${consequence} = ${score}${cWhy}.`
       : `Urgencia ${urgency} × consecuencia ${consequence} = ${score}${cWhy}` +
-        (Tp != null && hasCrack ? `; escenario pesimista: Danger en ${fmtH(Tp)} h.` : '.');
+        (Tp != null && hasCrack ? `; escenario pesimista: Danger en ${fmtH(Tp)} h.` : '.') +
+        (unverified
+          ? ' P1 porque puede estar crítico sin verificar.'
+          : tooClose
+            ? ' P1 porque el escenario pesimista llega a Danger en ≤ 200 h.'
+            : '');
 
   // Próxima inspección: la mitad del tiempo pesimista restante (tolerancia al daño), sin pasar del intervalo objetivo.
   // Sin piso: si la mitad del tiempo es muy corta, la acción es reparar o restringir, no reinspeccionar.
@@ -611,7 +628,6 @@ function analyzePoint(
   if (status === 'critico') nextInspection = null;
   else if (hasCrack && Tp != null) nextInspection = Math.min(Tp / 2, settings.targetInterval);
   if (nextInspection != null) nextInspection = Math.max(0, Math.floor(nextInspection / 10) * 10);
-  const tooClose = status !== 'critico' && hasCrack && Tp != null && Tp <= 200;
 
   // Acción recomendada (palabras del formato).
   let action: string;
@@ -619,7 +635,10 @@ function analyzePoint(
   else if (unverified)
     action = `Posible crítico no verificado: inspeccionar antes de seguir operando (la banda pesimista ya supera Danger al horómetro actual).`;
   else if (tooClose)
-    action = `Reparar ya o restringir la operación: el escenario pesimista llega a Danger en ${fmtH(Tp!)} h, antes de una reinspección útil.`;
+    action =
+      Tp === 0
+        ? 'Reparar ya o restringir la operación: el escenario pesimista ya alcanza Danger.'
+        : `Reparar ya o restringir la operación: el escenario pesimista llega a Danger en ${fmtH(Tp!)} h, antes de una reinspección útil.`;
   else if (status === 'alerta')
     action =
       Tp != null
@@ -647,7 +666,7 @@ function analyzePoint(
   if (status === 'normal' && length != null && length >= settings.nearCaution * point.caution)
     alerts.push({ level: 'warn', text: `Cerca de Caution: ${length} mm es el ${Math.round((length / point.caution) * 100)} % del límite.` });
   if (rate != null && rate >= settings.fastGrowth)
-    alerts.push({ level: 'warn', text: `Crece rápido: ${rate.toFixed(1)} mm por cada 100 h (umbral ${settings.fastGrowth}).` });
+    alerts.push({ level: 'warn', text: `Crece rápido: ${rate.toFixed(1).replace('.', ',')} mm por cada 100 h (umbral ${settings.fastGrowth}).` });
   if (status !== 'critico' && Tp != null && Tp < settings.alertWindow)
     alerts.push({ level: 'warn', text: `Puede llegar a Danger en menos de ${fmtH(settings.alertWindow)} h (pesimista: ${fmtH(Tp)} h).` });
   if (lastNI) alerts.push({ level: status === 'alerta' || status === 'critico' ? 'error' : 'warn', text: 'No inspeccionado en la última inspección (N/I). Un punto N/I no es un punto sano.' });
@@ -727,7 +746,6 @@ function analyzeUnit(
   const lastEvent = evs[evs.length - 1] ?? null;
   const lastGood = goodEvs[goodEvs.length - 1] ?? null;
   const firstGood = goodEvs[0] ?? null;
-  const nowHours = lastGood?.hours ?? null;
   const days = firstGood && lastGood ? daysBetween(firstGood.date, lastGood.date) : 0;
   const usage = firstGood && lastGood && days > 0 ? (lastGood.hours! - firstGood.hours!) / days : null;
   // Para convertir horas a fecha se usa el mayor entre el uso global y el de los últimos 3 intervalos:
@@ -736,6 +754,18 @@ function analyzeUnit(
   const recentDays = recent.length > 1 ? daysBetween(recent[0].date, recent[recent.length - 1].date) : 0;
   const recentUsage = recentDays > 0 ? (recent[recent.length - 1].hours! - recent[0].hours!) / recentDays : null;
   const usageForecast = usage == null ? recentUsage : Math.max(usage, recentUsage ?? 0);
+  // Horómetro actual: el de la última inspección válida. Si la última tiene horómetro inválido o vacío,
+  // se estima con los días transcurridos × uso, para no subestimar las horas operadas desde entonces.
+  let nowHours = lastGood?.hours ?? null;
+  const nowEstimated = !!(lastEvent && lastGood && lastEvent.id !== lastGood.id && usageForecast);
+  if (nowEstimated) nowHours = lastGood!.hours! + daysBetween(lastGood!.date, lastEvent!.date) * usageForecast!;
+  // Horas de cada inspección; si su horómetro es inválido, se estiman desde la anterior válida (para exposición, no para el ajuste).
+  const hoursOf = (date: string): number | null => {
+    const e = evById.get(`${unitId}|${date}`);
+    if (e && goodEvs.includes(e)) return e.hours;
+    const prev = goodEvs.filter((g) => g.date < date).slice(-1)[0];
+    return prev && usageForecast ? prev.hours! + daysBetween(prev.date, date) * usageForecast : null;
+  };
   const insps = inspections.filter((i) => i.unit === unitId);
   const zones = new Map(db.zones.map((z) => [z.id, z]));
   const points = db.points
@@ -743,7 +773,7 @@ function analyzeUnit(
     .sort((a, b) => (zones.get(a.zone)?.order ?? 0) - (zones.get(b.zone)?.order ?? 0) || a.code.localeCompare(b.code))
     .map((p) => {
       const zone = zones.get(p.zone) ?? { id: p.zone, name: p.zone, criticality: 3, reason: '', image: '', order: 99 };
-      return analyzePoint(p, zone, insps, evById, lastEvent, nowHours, usageForecast, typicalRate, s);
+      return analyzePoint(p, zone, insps, evById, lastEvent, nowHours, usageForecast, typicalRate, s, hoursOf);
     });
 
   // Resumen por inspección.
@@ -759,14 +789,11 @@ function analyzeUnit(
         return (st === 'critico' || st === 'alerta') && !ms.some((m) => m.code === p.point.code && m.length != null);
       })
       .map((p) => `${p.point.code} (${STATUS_LABEL[statusAt.get(p.point.code)!]})`);
-    const measuredStatuses = ms.filter((m) => m.length != null && !m.excluded).map((m) => {
-      const p = points.find((x) => x.point.code === m.code)!.point;
-      return statusOf(m.length, p);
-    });
+    const effOf = (code: string) => points.find((x) => x.point.code === code)!.series.find((si) => si.date === e.date);
+    const measuredStatuses = ms.filter((m) => m.length != null).map((m) => effOf(m.code)?.effStatus ?? 'ni');
     for (const m of ms) {
-      if (m.length == null || m.excluded) continue;
-      const p = points.find((x) => x.point.code === m.code)!.point;
-      statusAt.set(m.code, statusOf(m.length, p));
+      if (m.length == null) continue;
+      statusAt.set(m.code, effOf(m.code)?.effStatus ?? 'ni');
     }
     const bad = e.flags.some((f) => f.type === 'horometro' && f.severity === 'error');
     const sinceHours = !bad && prevGood && e.hours != null ? e.hours - prevGood.hours! : null;
@@ -790,7 +817,7 @@ function analyzeUnit(
   const repairs = points.reduce((a, p) => a + p.kpis.repairs, 0);
   const observed = nowHours != null && firstGood ? nowHours - firstGood.hours! : null;
   const mtbf = repairs && observed != null ? observed / repairs : null;
-  // Falla (curso, semana 5): pérdida de función. Aquí, cada episodio sobre Danger o fractura reportada fuera de uno.
+  // Falla (curso, semana 5): pérdida de función. Aquí, cada episodio sobre Danger o con fractura reportada.
   const failures = points.reduce((a, p) => a + p.kpis.dangerEpisodes, 0);
   const mtbfFailure = failures && observed != null ? observed / failures : null;
 
@@ -801,8 +828,8 @@ function analyzeUnit(
     let cs: number | null = null;
     let cl = 0;
     for (const si of p.series) {
-      if (si.length == null || si.excluded || si.hours == null) continue;
-      if (si.status === 'critico') {
+      if (si.length == null || si.hours == null) continue;
+      if (si.effStatus === 'critico') {
         cs ??= si.hours;
         cl = si.hours;
       } else if (cs != null) {
@@ -813,8 +840,8 @@ function analyzeUnit(
     if (cs != null) confirmedIv.push([cs, cl]);
     let start: number | null = null;
     for (const si of p.series) {
-      if (si.length == null || si.excluded || si.hours == null) continue;
-      if (si.status === 'critico') start ??= si.hours;
+      if (si.length == null || si.hours == null) continue;
+      if (si.effStatus === 'critico') start ??= si.hours;
       else if (start != null) {
         intervals.push([start, si.hours]);
         start = null;
@@ -833,6 +860,7 @@ function analyzeUnit(
     unitId,
     model,
     nowHours,
+    nowEstimated,
     nowDate: lastEvent?.date ?? null,
     firstHours: firstGood?.hours ?? null,
     firstDate: evs[0]?.date ?? null,
@@ -1037,7 +1065,16 @@ export function analyze(db: DB, asOf: string | null = null): FleetAnalysis {
   const units = db.units.map((u) =>
     analyzeUnit(u.id, u.model, db, q.events, q.inspections, isFinite(q.typicalRate[u.id]) ? q.typicalRate[u.id] : null, q.medianDays[u.id] ?? null),
   );
-  const workOrders = cut ? db.workOrders.filter((w) => w.createdAt <= cut) : db.workOrders;
+  // Con corte, cada OT se muestra en el estado que tenía ese día (según su historia de estados).
+  const workOrders = cut
+    ? db.workOrders
+        .filter((w) => w.createdAt <= cut)
+        .map((w) => {
+          const h = w.history.filter((x) => x.at.slice(0, 10) <= cut);
+          const state = h.length ? h[h.length - 1].state : w.history[0]?.state ?? w.state;
+          return state === w.state ? w : { ...w, state };
+        })
+    : db.workOrders;
   const points = units.flatMap((u) => u.points);
   for (const p of points) p.openWO = workOrders.find((w) => w.pointKey === p.point.key && isOpenWO(w));
   const ranking = points
