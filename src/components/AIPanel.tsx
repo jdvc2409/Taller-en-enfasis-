@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { useAnalysis } from '../hooks';
 import { imageBlob, useStore } from '../store';
 import { href } from '../router';
-import { SYSTEM, aiErrorMessage, askClaude, blobToBase64, photoPrompt, pointPrompt, reportPrompt, unitContext } from '../lib/ai';
+import { SYSTEM, aiAvailable, aiErrorMessage, askClaude, blobToBase64, photoPrompt, pointPrompt, reportPrompt, unitContext } from '../lib/ai';
 import { AI_MODELS } from '../lib/catalog';
 import { Icon } from './ui';
 
@@ -60,8 +60,9 @@ function AIPanel({ kind, unitId, pointKey, photo, onClose }: Props & { onClose: 
     return photoPrompt(p, photo!.name, photo!.date, photo!.length);
   }, [kind, unitId, pointKey, photo, db, fleet]);
 
+  const canAsk = aiAvailable(apiKey);
   const run = async () => {
-    if (!apiKey) return;
+    if (!canAsk) return;
     abort.current?.abort();
     const ac = new AbortController();
     abort.current = ac;
@@ -85,7 +86,7 @@ function AIPanel({ kind, unitId, pointKey, photo, onClose }: Props & { onClose: 
 
   useEffect(() => {
     closeRef.current?.focus();
-    if (apiKey) run();
+    if (canAsk) run();
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
     return () => {
@@ -114,7 +115,7 @@ function AIPanel({ kind, unitId, pointKey, photo, onClose }: Props & { onClose: 
           <div>
             <h2>{TITLES[kind]}</h2>
             <div className="tiny muted">
-              {apiKey ? modelName : 'Sin clave de API'}
+              {canAsk ? `${modelName}${apiKey ? ' · clave propia' : ''}` : 'IA no configurada'}
               {fleet.isPast ? ` · corte ${fleet.asOf}` : ''}
             </div>
           </div>
@@ -123,7 +124,7 @@ function AIPanel({ kind, unitId, pointKey, photo, onClose }: Props & { onClose: 
           </button>
         </div>
         <div className="ai-body">
-          {!apiKey ? (
+          {!canAsk ? (
             <div className="stack" style={{ gap: 12 }}>
               <div className="notice info">
                 <div>
@@ -162,7 +163,7 @@ function AIPanel({ kind, unitId, pointKey, photo, onClose }: Props & { onClose: 
         </div>
         <div className="ai-foot">
           <span className="tiny muted">Generado por IA: verifique cifras antes de actuar.</span>
-          {apiKey && (
+          {canAsk && (
             <div className="row" style={{ gap: 6 }}>
               {busy ? (
                 <button className="btn sm" onClick={() => abort.current?.abort()}>
@@ -177,6 +178,9 @@ function AIPanel({ kind, unitId, pointKey, photo, onClose }: Props & { onClose: 
               <button className="btn sm" onClick={() => copy(out, 'resultado')} disabled={!out}>
                 <Icon name="copy" size={14} />
                 {copied === 'resultado' ? 'Copiado' : 'Copiar resultado'}
+              </button>
+              <button className="btn sm ghost" onClick={() => copy(fullMessage, 'mensaje')} title="Copiar el mensaje completo para pegarlo en claude.ai">
+                {copied === 'mensaje' ? 'Copiado' : 'Copiar para Claude'}
               </button>
               <button className="btn sm" onClick={() => printOutput(TITLES[kind])} disabled={!out || busy}>
                 <Icon name="print" size={14} />

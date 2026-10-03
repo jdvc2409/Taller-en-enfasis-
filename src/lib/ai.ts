@@ -4,6 +4,10 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { FleetAnalysis, PointAnalysis, UnitAnalysis } from './analysis';
 import { STATUS_LABEL, fmtH } from './analysis';
 import { stateLabel } from './ot';
+import { AI_PROXY } from './catalog';
+
+/** Hay IA disponible: con clave propia o con el intermediario de la plataforma. */
+export const aiAvailable = (apiKey: string) => !!apiKey || !!AI_PROXY;
 import type { DB } from '../types';
 
 export const SYSTEM = `Eres un ingeniero de confiabilidad experto en integridad estructural de equipo minero (traíllas, cajas, compuertas y eyectores soldados).
@@ -139,6 +143,7 @@ export async function blobToBase64(blob: Blob, max = 1568): Promise<string> {
 }
 
 export interface AskOptions {
+  /** Clave propia del usuario; si está vacía se usa el intermediario de la plataforma. */
   apiKey: string;
   model: string;
   text: string;
@@ -151,7 +156,10 @@ export interface AskOptions {
 export async function askClaude({ apiKey, model, text, imageB64, onText, signal }: AskOptions): Promise<string> {
   // El SDK se carga solo cuando se usa la IA, para no frenar la primera visita.
   const { default: AnthropicSDK } = await import('@anthropic-ai/sdk');
-  const client = new AnthropicSDK({ apiKey, dangerouslyAllowBrowser: true });
+  const client = apiKey
+    ? new AnthropicSDK({ apiKey, dangerouslyAllowBrowser: true })
+    : new AnthropicSDK({ apiKey: 'intermediario', baseURL: AI_PROXY, dangerouslyAllowBrowser: true, maxRetries: 1 });
+  if (!apiKey && !AI_PROXY) throw new Error('La IA de la plataforma no está configurada. Agregue una clave propia en Datos → IA.');
   const content: Anthropic.ContentBlockParam[] = [];
   if (imageB64) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageB64 } });
   content.push({ type: 'text', text });
@@ -183,7 +191,8 @@ export function aiErrorMessage(e: unknown): string {
   if (err?.status === 401) return 'La clave de API no es válida. Revísela en Datos → IA.';
   if (err?.status === 403) return 'La clave no tiene permiso para este modelo. Pruebe otro modelo en Datos → IA.';
   if (err?.status === 404) return 'El modelo elegido no existe para esta clave. Elija otro en Datos → IA.';
-  if (err?.status === 429) return 'Se alcanzó el límite de uso de la API. Espere un momento y use "Regenerar".';
+  if (err?.status === 429) return 'Se alcanzó el límite de consultas. Espere unos minutos y use "Regenerar".';
+  if (err?.status === 403 && /origen/i.test(err.message ?? '')) return 'Esta página no está autorizada para usar la IA de la plataforma.';
   if (err?.name === 'APIConnectionError' || err?.name === 'APIConnectionTimeoutError')
     return 'No hay conexión con la API de Anthropic. Revise internet o use "Copiar para pegar en Claude".';
   if (typeof err?.status === 'number') return `La API respondió con error ${err.status}: ${err.message ?? ''}`;

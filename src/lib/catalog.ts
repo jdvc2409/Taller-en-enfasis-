@@ -11,6 +11,12 @@ export const DEFAULT_SETTINGS: Settings = {
   aiModel: 'claude-opus-5-5',
 };
 
+/**
+ * Intermediario de IA (función en Vercel que guarda la clave como secreto del servidor).
+ * Con él, cualquier persona puede usar la IA desde el link sin pegar una clave. Es una URL pública, no un secreto.
+ */
+export const AI_PROXY = '';
+
 export const AI_MODELS = [
   { id: 'claude-opus-5-5', name: 'Claude Opus 5.5 (más capaz)' },
   { id: 'claude-sonnet-5', name: 'Claude Sonnet 5 (equilibrado)' },

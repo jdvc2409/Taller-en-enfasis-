@@ -5,7 +5,7 @@ import { href } from '../router';
 import type { DB, FlagType, Settings } from '../types';
 import { mergeImport, parseWorkbook } from '../lib/importer';
 import { askClaude, aiErrorMessage } from '../lib/ai';
-import { AI_MODELS, BUNDLED_IMAGES } from '../lib/catalog';
+import { AI_MODELS, AI_PROXY, BUNDLED_IMAGES } from '../lib/catalog';
 import { downloadBlob, exportExcel } from './History';
 import { Icon, Panel, Severity, fmt, fmtDate } from '../components/ui';
 
@@ -115,7 +115,7 @@ export function Data() {
     setTest('Probando…');
     try {
       const out = await askClaude({ apiKey: keyDraft.trim(), model: db.settings.aiModel, text: 'Responde únicamente la palabra: Conectado' });
-      setTest(`Conexión correcta con ${db.settings.aiModel}: "${out.trim().slice(0, 40)}"`);
+      setTest(`Conexión correcta con ${db.settings.aiModel}${keyDraft.trim() ? ' (clave propia)' : ' (IA de la plataforma)'}: "${out.trim().slice(0, 40)}"`);
     } catch (e) {
       setTest(aiErrorMessage(e));
     }
@@ -417,10 +417,22 @@ export function Data() {
       </Panel>
 
       <div className="grid-2">
-        <Panel title="Inteligencia artificial" sub="La clave se guarda solo en este navegador: nunca en el código, el repositorio ni el respaldo.">
+        <Panel title="Inteligencia artificial" sub="La IA funciona para cualquier persona que abra el link, sin pegar ninguna clave.">
           <div className="stack" style={{ gap: 12 }}>
+            {AI_PROXY ? (
+              <div className="notice normal small">
+                <div>
+                  <b>IA de la plataforma activa.</b> Las consultas pasan por un servidor intermediario que guarda la clave como secreto: la clave no está en
+                  la página ni en el repositorio.
+                </div>
+              </div>
+            ) : (
+              <div className="notice alerta small">
+                <div>La IA de la plataforma no está configurada en esta versión: use una clave propia.</div>
+              </div>
+            )}
             <label className="f">
-              Clave de API de Anthropic
+              Clave propia de Anthropic (opcional; se guarda solo en este navegador)
               <input type="password" autoComplete="off" value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} placeholder="sk-ant-…" />
             </label>
             <label className="f">
@@ -437,7 +449,7 @@ export function Data() {
               <button className="btn primary" onClick={() => (setApiKey(keyDraft.trim()), setTest('Clave guardada en este navegador.'))}>
                 Guardar clave
               </button>
-              <button className="btn" onClick={testAI} disabled={!keyDraft.trim()}>
+              <button className="btn" onClick={testAI} disabled={!keyDraft.trim() && !AI_PROXY}>
                 Probar conexión
               </button>
               {apiKey && (
@@ -448,7 +460,7 @@ export function Data() {
             </div>
             {test && <div className="small">{test}</div>}
             <p className="tiny muted" style={{ margin: 0 }}>
-              Sin clave, los paneles de IA ofrecen "Copiar para pegar en Claude" con el mensaje completo.
+              Si la IA no responde, cada panel ofrece "Copiar para pegar en Claude" con el mensaje completo.
             </p>
           </div>
         </Panel>
