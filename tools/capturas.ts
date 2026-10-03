@@ -9,7 +9,8 @@ const out = process.argv[4] ?? 'capturas';
 mkdirSync(out, { recursive: true });
 
 const ROUTES: [string, string][] = [
-  ['flota', '#/'],
+  ['inicio', '#/'],
+  ['flota', '#/flota'],
   ['equipo', '#/equipo/631-01'],
   ['zona-ap', '#/equipo/631-01/zona/AP'],
   ['punto-ap03', '#/punto/631-01%7CAP-03'],

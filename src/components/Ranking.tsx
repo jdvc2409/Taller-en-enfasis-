@@ -5,6 +5,7 @@ import { createWorkOrder } from '../lib/ot';
 import { href, navigate } from '../router';
 import { useStore } from '../store';
 import { LimitBar, Prio, StatusPill, fmt, fmtDate } from './ui';
+import { Term } from './Help';
 
 export function DangerETA({ p, compact }: { p: PointAnalysis; compact?: boolean }) {
   const d = p.toDanger;
@@ -50,11 +51,21 @@ export function Ranking({ fleet, rows }: { fleet: FleetAnalysis; rows: PointAnal
       <table className="t">
         <thead>
           <tr>
-            <th>Prioridad</th>
-            <th>Punto</th>
-            <th>Estado</th>
-            <th>L frente a límites</th>
-            <th>Llega a Danger</th>
+            <th>
+              <Term k="prioridad">Prioridad</Term>
+            </th>
+            <th>
+              <Term k="punto">Punto</Term>
+            </th>
+            <th>
+              <Term k="estado">Estado</Term>
+            </th>
+            <th>
+              <Term k="l">Tamaño de la grieta</Term> / límites
+            </th>
+            <th>
+              <Term k="pesimista">Tiempo hasta Danger</Term>
+            </th>
             <th>Qué hacer</th>
             <th className="no-print" />
           </tr>

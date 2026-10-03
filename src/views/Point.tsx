@@ -5,6 +5,7 @@ import { href } from '../router';
 import { analyze, STATUS_LABEL, fmtH, type Crossing, type PointAnalysis } from '../lib/analysis';
 import { stateLabel } from '../lib/ot';
 import { Timeline } from '../components/Timeline';
+import { Term } from '../components/Help';
 import { GrowthChart } from '../components/GrowthChart';
 import { Schematic } from '../components/Schematic';
 import { AIButton } from '../components/AIPanel';
@@ -145,8 +146,8 @@ export function PointView({ pointKey }: { pointKey: string }) {
             {p.hasCrack && <Prio p={p.priority} title={p.priorityName} />}
           </h1>
           <p>
-            {p.point.description} · Caution (inicio de alerta) <b>{fmt(p.point.caution)} mm</b> · Danger (límite de operación segura){' '}
-            <b>{fmt(p.point.danger)} mm</b>
+            {p.point.description} · <Term k="caution">Caution</Term> (inicio de alerta) <b>{fmt(p.point.caution)} mm</b> ·{' '}
+            <Term k="danger">Danger</Term> (límite de operación segura) <b>{fmt(p.point.danger)} mm</b>
           </p>
         </div>
         <div className="row">

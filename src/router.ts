@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 
 export type Route =
+  | { name: 'inicio' }
   | { name: 'flota' }
   | { name: 'equipo'; unit: string }
   | { name: 'zona'; unit: string; zone: string }
@@ -15,8 +16,9 @@ export type Route =
 export function parseHash(hash: string): Route {
   const path = decodeURIComponent(hash.replace(/^#/, '').split('?')[0]) || '/';
   const parts = path.split('/').filter(Boolean);
-  if (!parts.length) return { name: 'flota' };
+  if (!parts.length) return { name: 'inicio' };
   const [a, b, c, d] = parts;
+  if (a === 'flota') return { name: 'flota' };
   if (a === 'equipo' && b && c === 'zona' && d) return { name: 'zona', unit: b, zone: d };
   if (a === 'equipo' && b) return { name: 'equipo', unit: b };
   if (a === 'punto' && b) return { name: 'punto', key: parts.slice(1).join('/') };
@@ -28,7 +30,8 @@ export function parseHash(hash: string): Route {
 }
 
 export const href = {
-  flota: () => '#/',
+  inicio: () => '#/',
+  flota: () => '#/flota',
   equipo: (u: string) => `#/equipo/${encodeURIComponent(u)}`,
   zona: (u: string, z: string) => `#/equipo/${encodeURIComponent(u)}/zona/${encodeURIComponent(z)}`,
   punto: (key: string) => `#/punto/${encodeURIComponent(key)}`,

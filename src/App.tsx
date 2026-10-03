@@ -2,6 +2,8 @@ import { Suspense, useEffect } from 'react';
 import { useStore } from './store';
 import { corteFromHash, href, useRoute, type Route } from './router';
 import { Icon, Logo } from './components/ui';
+import { HelpButton, ScreenGuide } from './components/Help';
+import { Home } from './views/Home';
 import { Fleet } from './views/Fleet';
 import { Unit } from './views/Unit';
 import { ZoneView } from './views/Zone';
@@ -15,7 +17,8 @@ function Nav({ route }: { route: Route }) {
   const db = useStore((s) => s.db);
   const unit = db?.units[0]?.id ?? '';
   const items: [string, string, Route['name'][]][] = [
-    ['Flota', href.flota(), ['flota', 'equipo', 'zona', 'punto']],
+    ['Inicio', href.inicio(), ['inicio']],
+    ['Qué reparar', href.flota(), ['flota', 'equipo', 'zona', 'punto']],
     ['Historial', href.historial(), ['historial']],
     ['Órdenes de trabajo', href.ot(), ['ot']],
     ['Registrar inspección', href.inspeccion(unit), ['inspeccion']],
@@ -50,6 +53,8 @@ function ThemeButton() {
 
 function Page({ route }: { route: Route }) {
   switch (route.name) {
+    case 'inicio':
+      return <Home />;
     case 'flota':
       return <Fleet />;
     case 'equipo':
@@ -69,7 +74,7 @@ function Page({ route }: { route: Route }) {
     default:
       return (
         <div className="panel empty">
-          No existe la página "{route.path}". <a href={href.flota()}>Ir a la flota</a>.
+          No existe la página "{route.path}". <a href={href.inicio()}>Ir al inicio</a>.
         </div>
       );
   }
@@ -98,11 +103,12 @@ export function App() {
     <>
       <header className="topbar">
         <div className="topbar-in">
-          <a className="brand" href={href.flota()} aria-label="Integridad Estructural, inicio">
+          <a className="brand" href={href.inicio()} aria-label="Integridad Estructural, inicio">
             <Logo />
             <span>Integridad Estructural</span>
           </a>
           <Nav route={route} />
+          <HelpButton />
           <ThemeButton />
         </div>
       </header>
@@ -118,6 +124,7 @@ export function App() {
         )}
         {db && !loading && (
           <Suspense fallback={<div className="loading">Cargando…</div>}>
+            <ScreenGuide route={route.name} />
             <Page route={route} />
           </Suspense>
         )}

@@ -5,6 +5,7 @@ import { Timeline } from '../components/Timeline';
 import { Ranking } from '../components/Ranking';
 import { RiskMatrix } from '../components/RiskMatrix';
 import { Findings } from '../components/Findings';
+import { Term } from '../components/Help';
 import { KPIs, Panel, StatusIcon, StatusPill, fmt, fmtDate } from '../components/ui';
 import { STATUS_LABEL, type UnitAnalysis } from '../lib/analysis';
 
@@ -94,7 +95,11 @@ export function Fleet() {
       <KPIs
         items={[
           {
-            label: 'Puntos en Crítico',
+            label: (
+              <>
+                Puntos en <Term k="estado">Crítico</Term>
+              </>
+            ),
             value: crit,
             tone: crit ? 'critico' : undefined,
             sub: 'Grieta sobre Danger (límite de operación segura) o con fractura reportada.',
@@ -106,13 +111,21 @@ export function Fleet() {
             sub: `Operadas con al menos un punto crítico, confirmadas por medición. Hasta ${fmt(hc)} h contando hasta la reparación.`,
           },
           {
-            label: 'MTBF estructural',
+            label: (
+              <>
+                <Term k="mtbf">MTBF</Term> estructural
+              </>
+            ),
             value: fmt(u0?.mtbf),
             unit: 'h',
             sub: `MTBF (tiempo medio entre reparaciones): ${u0?.repairs ?? 0} reparaciones en ${fmt(u0?.observedHours)} h.`,
           },
           {
-            label: 'Inspecciones a tiempo',
+            label: (
+              <>
+                <Term k="intervalo">Inspecciones a tiempo</Term>
+              </>
+            ),
             value: onTime[1] ? fmt((onTime[0] / onTime[1]) * 100) : '—',
             unit: '%',
             sub: `${onTime[0]} de ${onTime[1]} intervalos dentro del objetivo de ${fmt(db.settings.targetInterval)} h.`,
@@ -122,13 +135,17 @@ export function Fleet() {
 
       <Panel
         title="Qué atender primero"
-        sub="Puntos con grieta, ordenados por prioridad (urgencia × consecuencia; P1 es inmediata). El tiempo a Danger va del escenario pesimista al central."
+        sub="Puntos con grieta, del más urgente (arriba) al menos urgente. Haz clic en una fila para ver el detalle."
         tight
       >
         <Ranking fleet={fleet} rows={fleet.ranking} />
         {rec.length > 0 && (
-          <div style={{ padding: '14px 18px', borderTop: '1px solid var(--linea)' }}>
-            <h3 style={{ marginBottom: 4 }}>Reincidentes: análisis de causa raíz pendiente</h3>
+          <details className="more" style={{ borderTop: '1px solid var(--linea)' }}>
+            <summary>
+              Ver {rec.length} puntos <Term k="reincidente">reincidentes</Term> (la grieta vuelve después de repararla)
+            </summary>
+            <div style={{ padding: '0 18px 14px' }}>
+            <h3 style={{ marginBottom: 4 }}>Reincidentes: <Term k="causaRaiz">análisis de causa raíz</Term> pendiente</h3>
             <p className="small muted" style={{ margin: '0 0 10px' }}>
               Puntos reparados dos o más veces, o que ya operaron sobre Danger. Volver a soldar no elimina la causa.
             </p>
@@ -144,7 +161,8 @@ export function Fleet() {
                 </a>
               ))}
             </div>
-          </div>
+            </div>
+          </details>
         )}
       </Panel>
 
@@ -160,7 +178,7 @@ export function Fleet() {
           {units.map((u) => (
             <UnitCard key={u.unitId} u={u} />
           ))}
-          <Panel title="Matriz de riesgo" sub="Cantidad de puntos según urgencia (probabilidad) y consecuencia.">
+          <Panel title={<Term k="matriz" />} sub="Cantidad de puntos según urgencia (probabilidad) y consecuencia.">
             <RiskMatrix points={pts} />
           </Panel>
         </div>
