@@ -46,7 +46,8 @@ function migrate(db: DB): DB {
     ...emptyDB(),
     ...db,
     settings: { ...DEFAULT_SETTINGS, ...db.settings },
-    pos3d: { ...POS3D, ...(db.pos3d ?? {}) },
+    // Las posiciones 3D dependen del modelo y no se editan en la interfaz: siempre las del catálogo.
+    pos3d: { ...POS3D },
     points: db.points.map((p) =>
       p.criticality === undefined && POINT_CRITICALITY[p.code]
         ? { ...p, criticality: POINT_CRITICALITY[p.code].criticality, criticalityReason: POINT_CRITICALITY[p.code].reason }

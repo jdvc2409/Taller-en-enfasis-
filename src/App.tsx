@@ -1,8 +1,9 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { useStore } from './store';
 import { corteFromHash, href, useRoute, type Route } from './router';
 import { Icon, Logo } from './components/ui';
 import { HelpButton, ScreenGuide } from './components/Help';
+import { useReveal } from './components/Motion';
 import { Home } from './views/Home';
 import { Fleet } from './views/Fleet';
 import { Unit } from './views/Unit';
@@ -82,6 +83,9 @@ function Page({ route }: { route: Route }) {
 
 export function App() {
   const route = useRoute();
+  const mainRef = useRef<HTMLElement>(null);
+  const routeKey = JSON.stringify(route);
+  useReveal(mainRef, routeKey);
   const { loading, error, db, init, theme, saveError } = useStore();
 
   useEffect(() => {
@@ -112,7 +116,7 @@ export function App() {
           <ThemeButton />
         </div>
       </header>
-      <main className="page">
+      <main className="page" ref={mainRef}>
         {loading && <div className="loading">Cargando el historial de inspecciones…</div>}
         {error && (
           <div className="notice critico">
@@ -124,8 +128,10 @@ export function App() {
         )}
         {db && !loading && (
           <Suspense fallback={<div className="loading">Cargando…</div>}>
-            <ScreenGuide route={route.name} />
-            <Page route={route} />
+            <div key={routeKey} className="route-in">
+              <ScreenGuide route={route.name} />
+              <Page route={route} />
+            </div>
           </Suspense>
         )}
       </main>

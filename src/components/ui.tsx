@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import type { Status } from '../types';
 import { STATUS_LABEL } from '../lib/analysis';
+import { CountUp, isCountable } from './Motion';
 
 export const STATUS_COLOR: Record<Status, string> = {
   critico: 'var(--critico)',
@@ -113,7 +114,7 @@ export function KPIs({ items }: { items: KPIItem[] }) {
         <div key={i} className={`kpi${k.tone ? ' is-' + k.tone : ''}`} title={k.title}>
           <div className="kpi-l">{k.label}</div>
           <div className="kpi-v">
-            {k.value}
+            {isCountable(k.value) ? <CountUp text={String(k.value)} /> : k.value}
             {k.unit && <small>{k.unit}</small>}
           </div>
           {k.sub && <div className="kpi-s">{k.sub}</div>}

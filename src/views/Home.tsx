@@ -1,6 +1,6 @@
 // Inicio: la puerta de entrada para alguien que nunca ha usado la plataforma.
 // Responde en una frase "¿cómo está la flota?" y ofrece las cuatro cosas que se pueden hacer.
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useAnalysis } from '../hooks';
 import { useStore } from '../store';
 import { href, navigate } from '../router';
@@ -8,7 +8,8 @@ import { Scraper3D } from '../components/Lazy3D';
 import { useCreateWO } from '../components/Ranking';
 import { Term } from '../components/Help';
 import { Icon, StatusIcon, StatusPill, fmt, fmtDate } from '../components/ui';
-import type { PointAnalysis } from '../lib/analysis';
+import { worst, type PointAnalysis } from '../lib/analysis';
+import type { Status } from '../types';
 
 function Verdict() {
   const fleet = useAnalysis();
@@ -93,16 +94,57 @@ export function Home() {
   const fleet = useAnalysis();
   const db = useStore((s) => s.db)!;
   const u0 = fleet.units[0];
+  const [focus, setFocus] = useState<'BW' | 'AP' | 'EY' | null>(null);
   const counts = (['critico', 'alerta', 'normal', 'sin', 'ni'] as const).map((s) => [s, fleet.points.filter((p) => p.status === s).length] as const);
+  const zones = (['AP', 'BW', 'EY'] as const)
+    .map((id) => {
+      const z = db.zones.find((x) => x.id === id);
+      const zp = (u0?.points ?? []).filter((p) => p.point.zone === id);
+      return z && zp.length ? { id, name: z.name.split(' (')[0], n: zp.length, worst: worst(zp.map((p) => p.status)) } : null;
+    })
+    .filter(Boolean) as { id: 'BW' | 'AP' | 'EY'; name: string; n: number; worst: Status }[];
 
   return (
     <div className="stack home">
-      <div>
-        <h1>Integridad estructural de la flota</h1>
-        <p className="lead">Qué grietas reparar primero y cuándo volver a inspeccionar{fleet.lastDate ? ` · última inspección ${fmtDate(fleet.lastDate)}` : ''}.</p>
-      </div>
-
-      <Verdict />
+      <section className="hero">
+        <div className="hero-text">
+          <div className="eyebrow anim" style={{ ['--d' as string]: '0ms' }}>
+            Integridad estructural · {u0?.model ?? 'Traílla'} {u0?.unitId}
+          </div>
+          <h1 className="hero-t anim" style={{ ['--d' as string]: '90ms' }}>
+            Qué reparar primero,
+            <br />
+            <span className="hero-accent">sin adivinar.</span>
+          </h1>
+          <p className="lead anim" style={{ ['--d' as string]: '180ms' }}>
+            {fleet.lastDate ? `Última inspección: ${fmtDate(fleet.lastDate)}.` : 'Carga el historial para empezar.'}
+          </p>
+          <div className="anim" style={{ ['--d' as string]: '270ms' }}>
+            <Verdict />
+          </div>
+        </div>
+        <div className="hero-3d anim-scale" style={{ ['--d' as string]: '120ms' }}>
+          {u0 && (
+            <Suspense fallback={<div className="empty">Cargando el modelo 3D…</div>}>
+              <Scraper3D points={u0.points} pos3d={db.pos3d} onOpen={(k) => navigate(href.punto(k))} height={430} intro autoRotate focus={focus} bare />
+            </Suspense>
+          )}
+          <div className="zone-chips" role="group" aria-label="Recorrer la traílla por zonas">
+            <span className="small muted">Recorre la traílla:</span>
+            {zones.map((z) => (
+              <button key={z.id} className="zone-chip" aria-pressed={focus === z.id} onClick={() => setFocus(focus === z.id ? null : z.id)}>
+                <StatusIcon status={z.worst} size={11} />
+                {z.name}
+              </button>
+            ))}
+            {focus && (
+              <button className="zone-chip ghost" onClick={() => setFocus(null)}>
+                Ver completa
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
 
       <section aria-labelledby="que-hacer">
         <h2 id="que-hacer" style={{ marginBottom: 12 }}>
@@ -116,71 +158,47 @@ export function Home() {
         </div>
       </section>
 
-      <div className="grid-2">
-        <section className="panel">
-          <div className="panel-h">
-            <div>
-              <h2>Cómo leer los colores</h2>
-              <p>Según cuánto mide la grieta.</p>
-            </div>
+      <section className="panel">
+        <div className="panel-h">
+          <div>
+            <h2>Cómo leer los colores</h2>
+            <p>Según cuánto mide la grieta.</p>
           </div>
-          <div className="panel-b">
-            <dl className="legend">
-              {counts.map(([s, n]) => (
-                <div key={s} className="legend-row">
-                  <dt>
-                    <StatusPill status={s} />
-                  </dt>
-                  <dd>
-                    {s === 'critico' && (
-                      <>
-                        Alcanzó <Term k="danger" />. No operar hasta reparar.
-                      </>
-                    )}
-                    {s === 'alerta' && (
-                      <>
-                        Pasó <Term k="caution" />. Programar la reparación.
-                      </>
-                    )}
-                    {s === 'normal' && <>Grieta pequeña. Seguir vigilando.</>}
-                    {s === 'sin' && <>Sin grieta.</>}
-                    {s === 'ni' && (
-                      <>
-                        <Term k="ni">No se inspeccionó</Term> la última vez.
-                      </>
-                    )}
-                  </dd>
-                  <span className="legend-n tab">
-                    {n} {n === 1 ? 'punto' : 'puntos'}
-                  </span>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-h">
-            <div>
-              <h2>Tu traílla {u0?.unitId}</h2>
-              <p>Gírala con el mouse. Haz clic en un punto para abrirlo.</p>
-            </div>
-            {u0 && (
-              <a className="btn sm" href={href.equipo(u0.unitId)}>
-                Ver equipo
-              </a>
-            )}
-          </div>
-          <div className="panel-b home-3d">
-            {u0 && (
-              <Suspense fallback={<div className="empty">Cargando el modelo 3D…</div>}>
-                <Scraper3D points={u0.points} pos3d={db.pos3d} onOpen={(k) => navigate(href.punto(k))} height={320} />
-              </Suspense>
-            )}
-          </div>
-        </section>
-      </div>
-
+        </div>
+        <div className="panel-b">
+          <dl className="legend legend-row-wrap">
+            {counts.map(([s, n]) => (
+              <div key={s} className="legend-row">
+                <dt>
+                  <StatusPill status={s} />
+                </dt>
+                <dd>
+                  {s === 'critico' && (
+                    <>
+                      Alcanzó <Term k="danger" />. No operar hasta reparar.
+                    </>
+                  )}
+                  {s === 'alerta' && (
+                    <>
+                      Pasó <Term k="caution" />. Programar la reparación.
+                    </>
+                  )}
+                  {s === 'normal' && <>Grieta pequeña. Seguir vigilando.</>}
+                  {s === 'sin' && <>Sin grieta.</>}
+                  {s === 'ni' && (
+                    <>
+                      <Term k="ni">No se inspeccionó</Term> la última vez.
+                    </>
+                  )}
+                </dd>
+                <span className="legend-n tab">
+                  {n} {n === 1 ? 'punto' : 'puntos'}
+                </span>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
     </div>
   );
 }

@@ -59,20 +59,20 @@ export const POS2D: Record<string, { x: number; y: number }> = {
   'AP-04': { x: 0.6, y: 0.516 },
 };
 
-/** Posición 3D de cada punto en el modelo simplificado (m; x adelante, y arriba, z derecha). */
+/** Posición 3D de cada punto sobre el modelo de la 631G (m; x adelante, y arriba, z derecha; eje delantero x = 4,40). */
 export const POS3D: Record<string, [number, number, number]> = {
-  'BW-01': [-0.15, 2.85, -1.78],
-  'BW-02': [-1.4, 2.95, 0],
-  'BW-03': [-3.0, 1.8, 1.62],
-  'BW-04': [-3.0, 0.75, -1.82],
-  'EY-01': [-4.35, 1.95, 0.45],
-  'EY-02': [-4.55, 1.45, -0.85],
-  'EY-03': [-5.45, 1.25, 0.9],
-  'EY-04': [-4.6, 1.65, 0],
-  'AP-01': [0.2, 2.45, -1.9],
-  'AP-02': [0.85, 1.55, -1.82],
-  'AP-03': [1.92, 2.85, 0],
-  'AP-04': [1.2, 0.92, 0.35],
+  'BW-01': [0.8, 2.2, -1.9],
+  'BW-02': [-0.6, 2.56, 0],
+  'BW-03': [-1.4, 1.45, 1.66],
+  'BW-04': [-1.6, 0.82, -1.92],
+  'EY-01': [-2.24, 1.85, 0.45],
+  'EY-02': [-2.42, 1.0, -0.85],
+  'EY-03': [-3.35, 1.1, 0.85],
+  'EY-04': [-2.5, 1.86, 0],
+  'AP-01': [-0.5, 1.75, -2.08],
+  'AP-02': [0.55, 1.25, -1.82],
+  'AP-03': [0.98, 2.1, 0],
+  'AP-04': [1.18, 0.78, 0.35],
 };
 
 /** Imágenes que vienen con la aplicación (carpeta public/data). */

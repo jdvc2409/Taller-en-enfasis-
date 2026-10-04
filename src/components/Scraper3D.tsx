@@ -17,14 +17,31 @@ interface Props {
   highlightZone?: string | null;
   onOpen?: (key: string) => void;
   height?: number;
+  /** Entrada animada: la cámara llega volando y la traílla gira despacio hasta que alguien la toca. */
+  intro?: boolean;
+  autoRotate?: boolean;
+  /** Lleva la cámara a una zona (Caja, Apron o Eyector) y la resalta. */
+  focus?: 'BW' | 'AP' | 'EY' | null;
+  /** Sin la casilla de caja transparente (para la portada). */
+  bare?: boolean;
 }
+
+type Zone = 'BW' | 'AP' | 'EY';
+/** Vistas de cámara por zona: [objetivo, posición] en metros. */
+const VIEWS: Record<Zone, [[number, number, number], [number, number, number]]> = {
+  AP: [[0.8, 1.3, 0], [3.2, 3.9, -7.6]],
+  BW: [[-1.0, 1.4, 0], [1.2, 6.2, -10.5]],
+  EY: [[-2.4, 1.4, 0], [2.6, 7.6, 5.2]],
+};
+const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 type Tip = { x: number; y: number; p: PointAnalysis } | null;
 
-export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height = 420 }: Props) {
+export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height = 420, intro, autoRotate, focus, bare }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
-  const api = useRef<{ setZone: (z: string | null) => void; setBowlClear: (b: boolean) => void } | null>(null);
+  const api = useRef<{ setZone: (z: string | null) => void; setBowlClear: (b: boolean) => void; focus: (z: Zone | null) => void } | null>(null);
+  const motion = useRef({ intro, autoRotate });
   const [tip, setTip] = useState<Tip>(null);
   const [clear, setClear] = useState(false);
   const [webgl, setWebgl] = useState(true);
@@ -48,9 +65,9 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(34, el.clientWidth / height, 0.1, 200);
-    camera.position.set(6.5, 5.2, 12.5);
+    camera.position.set(7.4, 5.0, 12.0);
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0.2, 1.6, 0);
+    controls.target.set(0.6, 1.7, 0);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.minDistance = 7;
@@ -59,11 +76,42 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
     controls.minPolarAngle = Math.PI * 0.08;
     // Encuadre: en paneles angostos la cámara se aleja para que quepa la traílla completa.
     const baseOffset = camera.position.clone().sub(controls.target);
+    const homeTarget = controls.target.clone();
+    let k = 1;
     const fit = (aspect: number) => {
-      const k = Math.max(1, Math.pow(2.3 / aspect, 0.85));
-      camera.position.copy(controls.target).add(baseOffset.clone().multiplyScalar(k));
+      k = Math.max(1, Math.pow(2.3 / aspect, 0.85));
+      if (!tw) camera.position.copy(controls.target).add(baseOffset.clone().multiplyScalar(k));
     };
+    // Animación de cámara (entrada y enfoque de zonas).
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    let tw: { p0: THREE.Vector3; t0: THREE.Vector3; p1: THREE.Vector3; t1: THREE.Vector3; start: number; dur: number } | null = null;
+    const flyTo = (t1: THREE.Vector3, p1: THREE.Vector3, dur = 1300) => {
+      if (reduced) {
+        controls.target.copy(t1);
+        camera.position.copy(p1);
+        return;
+      }
+      tw = { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, start: performance.now(), dur };
+    };
+    const homePos = () => homeTarget.clone().add(baseOffset.clone().multiplyScalar(k));
     fit(el.clientWidth / height);
+    if (motion.current.intro && !reduced) {
+      const far = baseOffset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), 1.25).multiplyScalar(k * 1.9);
+      far.y += 4;
+      camera.position.copy(homeTarget).add(far);
+      flyTo(homeTarget.clone(), homePos(), 2600);
+    }
+    controls.autoRotate = !!motion.current.autoRotate && !reduced;
+    controls.autoRotateSpeed = 0.55;
+    let idle: ReturnType<typeof setTimeout> | undefined;
+    controls.addEventListener('start', () => {
+      tw = null;
+      controls.autoRotate = false;
+      clearTimeout(idle);
+    });
+    controls.addEventListener('end', () => {
+      if (motion.current.autoRotate && !reduced) idle = setTimeout(() => (controls.autoRotate = true), 9000);
+    });
     controls.update();
 
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -120,15 +168,8 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
     const model = buildScraper();
     disposables.push(model);
     scene.add(model.root);
-    const zoneMats: Record<string, THREE.MeshPhysicalMaterial[]> = {};
-    for (const [id, g] of Object.entries(model.zones)) {
-      const set = new Set<THREE.MeshPhysicalMaterial>();
-      g.traverse((o) => {
-        const m = (o as THREE.Mesh).material as THREE.MeshPhysicalMaterial | undefined;
-        if (m && (o as THREE.Mesh).isMesh) set.add(m);
-      });
-      zoneMats[id] = [...set];
-    }
+    // Solo la pintura propia de cada zona se resalta o se vuelve transparente (los pernos y el bastidor se comparten).
+    const zoneMats: Record<string, THREE.MeshPhysicalMaterial[]> = Object.fromEntries(Object.entries(model.zonePaint).map(([k, m]) => [k, [m]]));
 
     // Puntos
     const sphereG = geo(new THREE.SphereGeometry(0.15, 24, 16));
@@ -195,12 +236,26 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
 
     api.current = {
       setZone: (z) => {
+        zoneOn = z;
         for (const [id, ms] of Object.entries(zoneMats))
           for (const m of ms) {
             if (!m.emissive) continue;
-            m.emissive.setHex(id === z ? 0x3d7fc4 : 0x000000);
-            m.emissiveIntensity = id === z ? 0.45 : 0;
+            m.emissive.setHex(id === z ? 0xff8a00 : 0x000000);
+            m.emissiveIntensity = id === z ? 0.3 : 0;
           }
+      },
+      focus: (z) => {
+        api.current?.setZone(z);
+        clearTimeout(idle);
+        if (z) {
+          controls.autoRotate = false;
+          const [t, p] = VIEWS[z];
+          const tv = new THREE.Vector3(...t);
+          flyTo(tv, tv.clone().add(new THREE.Vector3(...p).sub(tv).multiplyScalar(k)));
+        } else {
+          flyTo(homeTarget.clone(), homePos());
+          if (motion.current.autoRotate && !reduced) idle = setTimeout(() => (controls.autoRotate = true), 2500);
+        }
       },
       setBowlClear: (b) => {
         model.zones.BW.traverse((o) => {
@@ -232,7 +287,15 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
     scene.traverse((o) => {
       if ((o as THREE.Mesh).isMesh && !markers.some((m) => m.mesh === o || m.halo === o)) solids.push(o);
     });
+    let zoneOn: string | null = null;
     const tick = () => {
+      if (tw) {
+        const t = Math.min(1, (performance.now() - tw.start) / tw.dur);
+        const e = ease(t);
+        camera.position.lerpVectors(tw.p0, tw.p1, e);
+        controls.target.lerpVectors(tw.t0, tw.t1, e);
+        if (t >= 1) tw = null;
+      }
       controls.update();
       // Cada pocos cuadros, las etiquetas de puntos tapados por la estructura se atenúan.
       if (frame++ % 6 === 0) {
@@ -253,7 +316,9 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
         const x = (v.x * 0.5 + 0.5) * el.clientWidth;
         const y = (-v.y * 0.5 + 0.5) * height;
         m.label.style.transform = `translate(${x + 9}px, ${y - 22}px)`;
-        m.label.style.display = v.z < 1 ? 'block' : 'none';
+        // Solo se rotulan los puntos con grieta; los demás se identifican al pasar el mouse.
+        const quiet = (m.p.status === 'sin' || m.p.status === 'ni') && m.p.point.zone !== zoneOn;
+        m.label.style.display = v.z < 1 && !quiet ? 'block' : 'none';
       }
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
@@ -262,6 +327,7 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
 
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(idle);
       ro.disconnect();
       controls.dispose();
       renderer.domElement.removeEventListener('pointermove', onMove);
@@ -278,11 +344,14 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
 
   useEffect(() => api.current?.setZone(highlightZone ?? null), [highlightZone, points]);
   useEffect(() => api.current?.setBowlClear(clear), [clear, points]);
+  useEffect(() => {
+    if (focus !== undefined) api.current?.focus(focus);
+  }, [focus]);
 
   if (!webgl) return <div className="empty">Este navegador no tiene WebGL: el modelo 3D no está disponible.</div>;
   return (
     <div>
-      <div ref={wrap} style={{ position: 'relative', height, borderRadius: 8, overflow: 'hidden', background: 'var(--sup2)' }}>
+      <div ref={wrap} className={bare ? 'viewer bare' : 'viewer'} style={{ position: 'relative', height, borderRadius: 8, overflow: 'hidden' }}>
         <div ref={labelsRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }} aria-hidden="true" />
         <div className="tiny muted" style={{ position: 'absolute', left: 10, bottom: 8, pointerEvents: 'none' }}>
           Arrastra para girar · rueda para acercar
@@ -316,10 +385,12 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
           </div>
         )}
       </div>
+      {!bare && (
       <label className="check small" style={{ marginTop: 10 }}>
         <input type="checkbox" checked={clear} onChange={(e) => setClear(e.target.checked)} />
         Caja transparente (para ver el eyector)
       </label>
+      )}
     </div>
   );
 }
