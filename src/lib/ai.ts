@@ -93,7 +93,8 @@ Con esta información, escribe el INFORME EJECUTIVO del equipo para el jefe de m
 6. **Tres recomendaciones proactivas.**`;
 }
 
-export function pointPrompt(db: DB, fleet: FleetAnalysis, p: PointAnalysis) {
+/** Datos de un punto para la IA (sin instrucciones). Lo usan el diagnóstico y el chatbot. */
+export function pointContext(db: DB, fleet: FleetAnalysis, p: PointAnalysis) {
   const u = fleet.units.find((x) => x.unitId === p.point.unit)!;
   const corte = fleet.isPast ? `Fecha de corte (máquina del tiempo): ${fleet.asOf}.\n` : '';
   return `${corte}PUNTO ${p.point.code} del equipo ${p.point.unit} (${u.model}), horómetro actual ${n(u.nowHours, 1)} h al ${u.nowDate}, uso para fechas ${n(u.usageForecast, 1)} h/día.
@@ -105,7 +106,11 @@ Alertas: ${p.alerts.map((a) => a.text).join(' ') || 'ninguna'}
 Ritmo típico del equipo: ${n(u.typicalRate, 1)} mm/100 h. Criterios: crecimiento rápido ≥ ${db.settings.fastGrowth} mm/100 h; intervalo objetivo ${db.settings.targetInterval} h.
 
 HISTORIAL (fecha | horas | L | marcas)
-${historyLines(p)}
+${historyLines(p)}`;
+}
+
+export function pointPrompt(db: DB, fleet: FleetAnalysis, p: PointAnalysis) {
+  return `${pointContext(db, fleet, p)}
 
 Escribe el DIAGNÓSTICO de este punto:
 1. **¿Qué tan confiable es la tendencia?** (número de medidas, ajuste, datos dudosos).
@@ -148,12 +153,14 @@ export interface AskOptions {
   model: string;
   text: string;
   imageB64?: string;
+  /** Límite de tokens de la respuesta (16000 por defecto). */
+  maxTokens?: number;
   onText?: (delta: string) => void;
   signal?: AbortSignal;
 }
 
 /** Llama a Claude con streaming. Devuelve el texto completo. */
-export async function askClaude({ apiKey, model, text, imageB64, onText, signal }: AskOptions): Promise<string> {
+export async function askClaude({ apiKey, model, text, imageB64, maxTokens = 16000, onText, signal }: AskOptions): Promise<string> {
   // El SDK se carga solo cuando se usa la IA, para no frenar la primera visita.
   const { default: AnthropicSDK } = await import('@anthropic-ai/sdk');
   const client = apiKey
@@ -166,7 +173,7 @@ export async function askClaude({ apiKey, model, text, imageB64, onText, signal 
   const stream = client.messages.stream(
     {
       model,
-      max_tokens: 16000,
+      max_tokens: maxTokens,
       system: SYSTEM,
       messages: [{ role: 'user', content }],
       // Haiku 4.5 no admite el parámetro effort; en los demás se fija explícitamente.
