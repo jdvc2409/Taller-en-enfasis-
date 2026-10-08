@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import { useAnalysis } from '../hooks';
 import { useStore } from '../store';
 import { href, navigate } from '../router';
-import { Scraper3D } from '../components/Lazy3D';
+import { Scraper3D, ScraperStory } from '../components/Lazy3D';
 import { useCreateWO } from '../components/Ranking';
 import { Term } from '../components/Help';
 import { Icon, StatusIcon, StatusPill, fmt, fmtDate } from '../components/ui';
@@ -145,6 +145,12 @@ export function Home() {
           </div>
         </div>
       </section>
+
+      {u0 && (
+        <Suspense fallback={null}>
+          <ScraperStory points={u0.points} pos3d={db.pos3d} zones={db.zones} unitLabel={`${u0.model ?? 'Traílla'} ${u0.unitId}`} />
+        </Suspense>
+      )}
 
       <section aria-labelledby="que-hacer">
         <h2 id="que-hacer" style={{ marginBottom: 12 }}>

@@ -1952,3 +1952,323 @@ details.finding {
     line-height: 40px;
   }
 }
+
+/* ---------------------------------------------------------------- recorrido por scroll (portada) */
+/* La sección es alta; el escenario queda fijo mientras se baja y el avance del scroll mueve la traílla. */
+
+.story {
+  position: relative;
+  height: 560vh;
+  margin: 12px calc(50% - 50vw);
+}
+.story-stage {
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+  height: calc(100svh - 56px);
+  overflow: hidden;
+  background:
+    radial-gradient(70% 60% at 62% 45%, var(--sup) 0%, transparent 70%),
+    linear-gradient(180deg, var(--sup2) 0%, var(--plano) 100%);
+  border-top: 1px solid var(--linea);
+  border-bottom: 1px solid var(--linea);
+}
+.story-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+.story-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.story-cards {
+  position: absolute;
+  left: max(24px, calc((100vw - var(--ancho)) / 2 + 24px));
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(430px, 38vw);
+  display: grid;
+  pointer-events: none;
+}
+.story-card {
+  grid-area: 1 / 1;
+  align-self: center;
+  background: color-mix(in srgb, var(--sup) 90%, transparent);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  box-shadow: var(--sombra-flotante);
+  padding: 22px 24px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(28px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1),
+    visibility 0s linear 0.6s;
+}
+.story-card.past {
+  transform: translateY(-28px);
+}
+.story-card.on {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  pointer-events: auto;
+  transition:
+    opacity 0.5s ease 0.1s,
+    transform 0.65s cubic-bezier(0.2, 0.7, 0.2, 1) 0.1s,
+    visibility 0s;
+}
+.story-k {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acento);
+  margin-bottom: 8px;
+}
+.story-t {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.story-t.big {
+  font-size: 32px;
+  line-height: 38px;
+}
+.story-p {
+  margin: 0;
+  color: var(--tinta2);
+}
+.story-crit {
+  color: var(--critico);
+}
+.story-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.story-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.story-pts {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--linea);
+}
+.story-pts a {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 4px;
+  border-bottom: 1px solid var(--linea);
+  color: var(--tinta);
+  font-size: 13px;
+}
+.story-pts a:hover {
+  text-decoration: none;
+  background: var(--sup2);
+}
+.story-desc {
+  color: var(--apagado);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.story-len {
+  font-weight: 600;
+}
+.story-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--tinta2);
+}
+.story-rail {
+  position: absolute;
+  right: max(24px, calc((100vw - var(--ancho)) / 2 + 24px));
+  top: 50%;
+  transform: translateY(-50%);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  pointer-events: none;
+}
+.story-rail li {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--apagado);
+}
+.story-rail li::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--control);
+  transition:
+    background-color 0.3s ease,
+    transform 0.3s ease;
+}
+.story-rail li span {
+  opacity: 0;
+  transform: translateX(6px);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+.story-rail li.past::after {
+  background: var(--control);
+}
+.story-rail li.on {
+  color: var(--tinta);
+}
+.story-rail li.on span {
+  opacity: 1;
+  transform: none;
+}
+.story-rail li.on::after {
+  background: var(--acento);
+  border-color: var(--acento);
+  transform: scale(1.35);
+}
+.story-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--sup);
+  border: 1px solid var(--linea2);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tinta2);
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.story-hint svg {
+  animation: storyNudge 1.6s ease-in-out infinite;
+}
+.story-hint.off {
+  opacity: 0;
+}
+@keyframes storyNudge {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+/* Sin movimiento: la traílla queda desarmada y los textos se leen en orden. */
+.story.still {
+  height: auto;
+}
+.story.still .story-stage {
+  position: relative;
+  top: 0;
+  height: 62vh;
+}
+.story-list {
+  max-width: var(--ancho);
+  margin: 18px auto 0;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+}
+.story-list .story-card {
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+@media (max-width: 899px) {
+  .story {
+    height: 520vh;
+  }
+  .story-cards {
+    left: 16px;
+    right: 16px;
+    top: auto;
+    bottom: 16px;
+    width: auto;
+    transform: none;
+  }
+  .story-card {
+    align-self: end;
+    padding: 16px 18px;
+    max-height: 52svh;
+    overflow-y: auto;
+  }
+  .story-t {
+    font-size: 20px;
+    line-height: 26px;
+  }
+  .story-t.big {
+    font-size: 24px;
+    line-height: 30px;
+  }
+  .story-pts a {
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+  }
+  .story-pts .story-desc {
+    display: none;
+  }
+  .story-rail {
+    top: 14px;
+    right: 16px;
+    left: 16px;
+    transform: none;
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+  }
+  .story-rail li span {
+    display: none;
+  }
+  .story-hint {
+    top: 40px;
+    bottom: auto;
+  }
+  .story-list {
+    padding: 0 16px;
+  }
+}
+@media (max-width: 760px) {
+  .story-stage {
+    top: 56px;
+  }
+}
+@media print {
+  .story {
+    display: none;
+  }
+}

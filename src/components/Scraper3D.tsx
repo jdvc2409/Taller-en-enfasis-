@@ -288,7 +288,15 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
       if ((o as THREE.Mesh).isMesh && !markers.some((m) => m.mesh === o || m.halo === o)) solids.push(o);
     });
     let zoneOn: string | null = null;
+    // Fuera de pantalla no se dibuja (ahorra batería y deja la GPU al resto de la página).
+    let onScreen = true;
+    const vis = new IntersectionObserver(([e]) => (onScreen = e.isIntersecting));
+    vis.observe(el);
     const tick = () => {
+      if (!onScreen) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       if (tw) {
         const t = Math.min(1, (performance.now() - tw.start) / tw.dur);
         const e = ease(t);
@@ -328,6 +336,7 @@ export default function Scraper3D({ points, pos3d, highlightZone, onOpen, height
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(idle);
+      vis.disconnect();
       ro.disconnect();
       controls.dispose();
       renderer.domElement.removeEventListener('pointermove', onMove);
