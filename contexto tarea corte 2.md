@@ -961,7 +961,10 @@ npx playwright install chromium     # una vez, para flujo.ts y capturas.ts
 | 5fb6591 | Material del curso para el chatbot (semanas 1 a 5) |
 | 92238bd | Lógica del chatbot y pruebas sin red |
 | 0d02266 | Chatbot "Pregúntale a la IA" en todas las pantallas |
-| (siguientes) | Pruebas de navegador y capturas; GitHub Actions; documentación |
+| b4c787b | Chatbot: encabezado compacto en celular y mención en Ayuda |
+| 76b0c1d | Pruebas de navegador al día y con el chatbot |
+| 46c3565 | GitHub Actions: acciones en Node 24 y prueba del chat antes del build |
+| a8ba71d | Documentación de la versión final |
 
 Resumen del proceso:
 1. Se revisaron el Excel y el Word contra el encargo.
