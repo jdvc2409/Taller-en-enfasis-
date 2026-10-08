@@ -4,6 +4,7 @@ import { corteFromHash, href, useRoute, type Route } from './router';
 import { Icon, Logo } from './components/ui';
 import { HelpButton, ScreenGuide } from './components/Help';
 import { useReveal } from './components/Motion';
+import { ChatBot } from './components/ChatBot';
 import { Home } from './views/Home';
 import { Fleet } from './views/Fleet';
 import { Unit } from './views/Unit';
@@ -135,6 +136,7 @@ export function App() {
           </Suspense>
         )}
       </main>
+      <ChatBot />
       {saveError && <div className="toast">{saveError}</div>}
     </>
   );

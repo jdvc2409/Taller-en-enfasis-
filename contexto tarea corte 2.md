@@ -5,10 +5,10 @@ Este documento reúne todo lo que se hizo: el enunciado, las decisiones, los dat
 - **Materia:** Gestión del Mantenimiento, Universidad de La Sabana. Trabajo individual del segundo corte.
 - **Entrega:** exposición en vivo más un link, el **sábado 10 de octubre de 2026**.
 - **Link de la plataforma:** https://jdvc2409.github.io/Taller-en-enfasis-/
-- **Repositorio:** https://github.com/jdvc2409/Taller-en-enfasis- (público). La rama `main` es la versión publicada; la rama `rediseno-sobrio` tiene la interfaz rediseñada, todavía sin mezclar (ver la sección 2.1).
+- **Repositorio:** https://github.com/jdvc2409/Taller-en-enfasis- (público). La rama `main` es la versión publicada y ya incluye el rediseño, la animación por scroll de Inicio y, al mezclar la rama `version-final`, el chatbot (ver la sección 2.1).
 - **Intermediario de IA:** https://integridad-estructural-ia.vercel.app (proyecto de Vercel `integridad-estructural-ia`).
 - **Carpeta local:** `/home/juan/taller en enfasis/Taller-en-enfasis-`
-- **Construido el** 3 de octubre de 2026 con Claude Code (Claude Opus 5.5), más un agente revisor independiente. El rediseño y la interfaz guiada se hicieron el mismo día, en la rama `rediseno-sobrio`, en dos sesiones de Claude Code.
+- **Construido el** 3 de octubre de 2026 con Claude Code (Claude Opus 5.5), más un agente revisor independiente. El rediseño y la interfaz guiada se hicieron el mismo día, en la rama `rediseno-sobrio`, en dos sesiones de Claude Code. La animación por scroll de Inicio llegó por la rama `animacion-scroll` (PR #1) y el chatbot y la versión final, el 8 de octubre de 2026, por la rama `version-final`.
 
 ---
 
@@ -81,9 +81,10 @@ Material del curso consultado: `curso/Semana_1` a `Semana_5` (PDF).
 |---|---|
 | Alcance de datos | Un solo equipo real (631-01). La plataforma funciona para N equipos, pero **no se inventaron equipos ni datos**. |
 | Publicación | GitHub Pages en `jdvc2409/Taller-en-enfasis-`, desplegado con GitHub Actions. |
-| Interfaz (versión publicada, `main`) | **Oscura por defecto**, pulida y profesional, sin neón. Hay un botón de tema claro. |
-| Interfaz (rama `rediseno-sobrio`) | Después, la persona pidió que se viera **seria, elegante y muy intuitiva**, porque la versión oscura con cuadrícula, marcadores que pulsan y tipografía condensada "parecía un juego". Se pasó a **tema claro por defecto**, se agregó una pantalla de inicio, guías y un asistente de inspección. Todo sin tocar la lógica. Ver la sección 2.1. |
+| Interfaz original | **Oscura por defecto**, pulida y profesional, sin neón, con un botón de tema claro. Fue la primera versión publicada. |
+| Interfaz actual (rediseño, ya en `main`) | Después, la persona pidió que se viera **seria, elegante y muy intuitiva**, porque la versión oscura con cuadrícula, marcadores que pulsan y tipografía condensada "parecía un juego". Se pasó a **tema claro por defecto**, se agregó una pantalla de inicio, guías y un asistente de inspección. Todo sin tocar la lógica. Ver la sección 2.1. |
 | IA | Modelo por defecto `claude-opus-5-5`. Alternativas: `claude-sonnet-5` y `claude-haiku-4-5`. |
+| Chatbot | Un chat "Pregúntale a la IA" en todas las pantallas, de solo lectura, con los datos reales y el material del curso. Funciona con el intermediario tal como está: cada consulta va en un solo mensaje de usuario (sección 10.6). |
 | Clave de API | No va en el código. **Cualquier persona puede usar la IA desde el link**, a través de un intermediario en Vercel que guarda la clave como secreto. Ver la sección 15. |
 | Revisión de ingeniería | La pidió la persona. Un segundo agente revisó en paralelo los cálculos, la lógica de mantenimiento y la seguridad, y sus correcciones se aplicaron. |
 | Herramientas de diseño | Figma no estaba conectado. El diseño se hizo en código y se revisó con capturas de Playwright en oscuro, claro y celular. |
@@ -92,12 +93,14 @@ Material del curso consultado: `curso/Semana_1` a `Semana_5` (PDF).
 
 ### 2.1 Versiones de la interfaz y estado de las ramas
 
-| Rama | Qué tiene | Publicada |
+| Rama | Qué tiene | Estado |
 |---|---|---|
-| `main` | Interfaz original: tema oscuro, Flota como portada (`#/`), formulario de inspección en una sola página, 3D simplificado | **Sí**, en https://jdvc2409.github.io/Taller-en-enfasis-/ |
-| `rediseno-sobrio` | Rediseño sobrio, pantalla de inicio, interfaz guiada, asistente de inspección y 3D detallado (4 commits sobre `main`) | No. El workflow solo publica `main`. Para verla: `git checkout rediseno-sobrio && npm install && npm run dev`. |
+| `main` | Rediseño sobrio (tema claro, Inicio, interfaz guiada, asistente de inspección, 3D detallado) y la animación por scroll de Inicio | **Publicada** en https://jdvc2409.github.io/Taller-en-enfasis-/ |
+| `version-final` | `main` más el chatbot "Pregúntale a la IA", pruebas de navegador actualizadas, GitHub Actions al día y esta documentación | PR abierto a `main`; al mezclarlo se publica solo |
+| `rediseno-sobrio` | El rediseño | Ya contenida en `main` (se puede borrar) |
+| `animacion-scroll` | La animación por scroll de Inicio | Ya mezclada en `main` con el PR #1 (se puede borrar) |
 
-**El motor de cálculo (`src/lib/*`) es idéntico en las dos ramas**, salvo el archivo nuevo `src/lib/glossary.ts`, que solo contiene textos de ayuda. Las 37 pruebas de aceptación pasan en ambas. Para publicar el rediseño hay que mezclar `rediseno-sobrio` en `main`; el push a `main` dispara el despliegue.
+**El motor de cálculo (`src/lib/analysis.ts`, `quality.ts`, `importer.ts`, `ot.ts` y el store) no cambió en ninguna de estas ramas.** Las 37 pruebas de aceptación pasan en todas. El push a `main` dispara el despliegue.
 
 ---
 
@@ -410,23 +413,23 @@ La persona pidió que otro agente revisara en paralelo que los cálculos fueran 
 | `claude-sonnet-5-5` y `claude-haiku-4-5-20251001` | `claude-sonnet-5` y `claude-haiku-4-5` | El primero no existe; se usa el ID vigente sin fecha |
 | max_tokens 2000 | 16.000, con streaming | Opus 5.5 siempre razona antes de responder; con 2.000 tokens la respuesta se cortaría |
 | La clave se pega en Datos | **Intermediario en Vercel** para que cualquiera pregunte, más una clave propia opcional | Lo pidió la persona sin exponer la clave (sección 15) |
-| Tema por `prefers-color-scheme` | **Oscuro por defecto**, con un botón para el claro | Preferencia de la persona |
+| Tema por `prefers-color-scheme` | Primero **oscuro por defecto**; desde el rediseño, **claro por defecto**, con un botón para el oscuro | Preferencia de la persona |
 | Detección de reparación por texto | Detección más estricta, con negaciones | Evitar que "hasta reparar" abra un ciclo nuevo |
 
 ---
 
 ## 8. Pantallas y funciones
 
-Las rutas usan `#` para funcionar en GitHub Pages. Esta sección describe la rama `rediseno-sobrio`; las diferencias con `main` se indican donde aplican.
+Las rutas usan `#` para funcionar en GitHub Pages. Esta sección describe la interfaz actual (el rediseño, ya en `main`).
 
-**Barra superior:** logo, "Integridad Estructural", Inicio, Qué reparar, Historial, Órdenes de trabajo, Registrar inspección, Datos, **Ayuda** y el botón de tema. En `main` no existen Inicio ni Ayuda, y "Qué reparar" se llama Flota.
+**Barra superior:** logo, "Integridad Estructural", Inicio, Qué reparar, Historial, Órdenes de trabajo, Registrar inspección, Datos, **Ayuda** y el botón de tema. **En todas las pantallas**, abajo a la derecha, está el botón **"Pregúntale a la IA"** (sección 10.6).
 
 **Ayuda integrada** (`src/components/Help.tsx` y `src/lib/glossary.ts`):
 - **Guía de pantalla:** una línea arriba de cada pantalla que dice para qué sirve. Se puede cerrar y volver a mostrar.
 - **Botón Ayuda:** panel lateral con la leyenda de estados (color, forma e ícono) y un **glosario con búsqueda** de 22 términos. Entre ellos: punto de inspección, zona, L, Caution, Danger, estado, N/I, prioridad, urgencia, consecuencia, pronóstico, pesimista y central, horómetro, MTBF, OT, reincidente, análisis de causa raíz, matriz de riesgo, "ver el estado en otra fecha", END, intervalo y backlog.
 - **Palabras técnicas con explicación:** Danger, Caution, MTBF, prioridad, N/I y otras muestran su significado al hacer clic.
 
-### 8.0 Inicio (`#/`), solo en la rama `rediseno-sobrio`
+### 8.0 Inicio (`#/`)
 
 - Título "Integridad estructural de la flota" y el **veredicto en una frase**: el estado de la flota.
 - **El punto más urgente**, con su acción y los botones para abrirlo y crear su OT (o ver la OT abierta).
@@ -436,22 +439,26 @@ Las rutas usan `#` para funcionar en GitHub Pages. Esta sección describe la ram
   3. Seguir las reparaciones.
   4. Buscar una medición.
 - **"Cómo leer los colores":** la leyenda de estados.
-- **"Tu traílla 631-01":** el modelo 3D con los puntos por estado y un enlace al equipo.
+- **Recorrido por scroll** (`src/components/ScraperStory.tsx`, cargado con `lazy` desde `src/components/Lazy3D.ts`; estilos en el bloque "recorrido por scroll" de `src/styles.css`):
+  - Una sección de 560 vh con un escenario fijo (`position: sticky`). Al bajar, la traílla se desarma en Caja, Apron y Eyector; la cámara recorre cada zona con una tarjeta de sus puntos (código, descripción, L y estado, con enlace al punto) y al final se rearma.
+  - Las tarjetas van a la izquierda en escritorio y abajo en celular; el riel de pasos, a la derecha en escritorio y arriba en celular.
+  - **Solo lee** el análisis: los estados y medidas son los de la plataforma, también con la máquina del tiempo.
+  - Solo dibuja cuando está en pantalla. Con `prefers-reduced-motion` no hay movimiento: la traílla queda desarmada y las tarjetas se leen en orden.
 
 ### 8.1 Ver el estado en otra fecha (máquina del tiempo)
 
 Es un componente compartido en Qué reparar, Equipo, Zona y Punto.
 
-- **En `rediseno-sobrio`:** es una sección **plegable**, "Ver el estado en otra fecha", ubicada debajo del encabezado de la pantalla.
+- Es una sección **plegable**, "Ver el estado en otra fecha", ubicada debajo del encabezado de la pantalla.
   - Cuando hay una fecha activa, aparece el aviso **"Estás viendo el {fecha}. Lo que se midió después aparece en gris."** con el botón **"Volver a hoy"**, y la sección se despliega sola.
-- **En `main`:** es una franja fija arriba, con el texto "Viendo la plataforma como estaba el {fecha}" y el botón "Volver al presente".
-- **Funcionamiento común:**
+  - El chatbot también responde con los datos de esa fecha y lo avisa.
+- **Funcionamiento:**
   - Una marca por inspección, coloreada con el peor estado medido ese día, y los años debajo.
   - Se elige la fecha arrastrando, haciendo clic, con las teclas ← → Inicio Fin, o con los botones de inspección anterior y siguiente. Las marcas futuras se ven tenues.
   - **Enlace directo con fecha:** `#/punto/631-01%7CAP-03?corte=2024-04-30`.
   - La fecha se mantiene al navegar entre pantallas hasta volver a hoy.
 
-### 8.2 Qué reparar (`#/flota`; en `main` es Flota, en `#/`)
+### 8.2 Qué reparar (`#/flota`)
 
 - Título "Traílla 631G" y **una sola frase de estado**: "1 punto crítico: reparar antes de continuar operando", o "Ningún punto sobre el límite.". El botón **Registrar inspección** es el único botón principal de la pantalla.
 - **4 indicadores en tarjetas separadas:**
@@ -475,7 +482,7 @@ Es un componente compartido en Qué reparar, Equipo, Zona y Punto.
   - R = reparada, rayado = N/I, borde punteado = excluida.
   - Encabezados en ámbar cuando hubo intervalo largo o inspección parcial.
   - Lo posterior a la fecha elegida se ve tenue. Clic en una celda abre el punto.
-  - En `rediseno-sobrio` cada celda tiene el fondo suave del estado y un borde del color pleno.
+  - Cada celda tiene el fondo suave del estado y un borde del color pleno.
 - Todos los hallazgos.
 - Botón **"Informe ejecutivo con IA"**.
 
@@ -498,10 +505,10 @@ Es un componente compartido en Qué reparar, Equipo, Zona y Punto.
   - Pronóstico: línea central discontinua, banda del 90 % y **franja roja sobre Danger** entre el cruce pesimista y el optimista, con el rótulo "Danger ≈ …".
   - **Con corte en el pasado, lo medido después aparece en gris**, para comparar el pronóstico con la realidad.
   - Tooltip con fecha, horas, mm, estado, inspector, comentario y marcas.
-- Cuatro cifras: llega a Caution, llega a Danger, ritmo y próxima inspección. Debajo, la nota del método. En `rediseno-sobrio`, "¿Por qué?" (urgencia × consecuencia) y "Cómo se calculó" (método) están plegados, y el encabezado explica "Caution (inicio de alerta)" y "Danger (límite de operación segura)".
+- Cuatro cifras: llega a Caution, llega a Danger, ritmo y próxima inspección. Debajo, la nota del método. "¿Por qué?" (urgencia × consecuencia) y "Cómo se calculó" (método) están plegados, y el encabezado explica "Caution (inicio de alerta)" y "Danger (límite de operación segura)".
 - Columna lateral: esquema compacto, indicadores del punto y alertas.
 - **Fotos:** galería con fecha y mm, ampliable. "Agregar fotos" las asocia a la última inspección. "Analizar foto" usa la IA de visión.
-- **Historial del punto:** de la más reciente a la más antigua, con las marcas de calidad explicadas y la casilla Incluida / Excluida. En `rediseno-sobrio` muestra las últimas 6 medidas, con un botón para ver todas.
+- **Historial del punto:** de la más reciente a la más antigua, con las marcas de calidad explicadas y la casilla Incluida / Excluida. Muestra las últimas 6 medidas, con un botón para ver todas.
 - OT de este punto.
 
 ### 8.6 Historial (`#/historial`)
@@ -512,7 +519,7 @@ Es un componente compartido en Qué reparar, Equipo, Zona y Punto.
 
 ### 8.7 Registrar inspección (`#/inspeccion/631-01`), réplica digital del Word
 
-**En `rediseno-sobrio`: asistente paso a paso.** Los pasos son Datos → Caja → Eyector → Apron → Revisar y guardar.
+**Asistente paso a paso.** Los pasos son Datos → Caja → Eyector → Apron → Revisar y guardar.
 - **Datos:** fecha; equipo; horas, con un estimado = último horómetro + días × h/día, y error si es menor que el último o si supera 24 h/día; e inspector, con una lista de los conocidos.
 - **Un paso por zona**, con una tarjeta por punto que ofrece tres opciones: **"Medí"** (L actual), **"No pude revisarlo"** (N/I) o **"Se reparó"**.
   - Cada tarjeta muestra Caution, Danger, la L anterior, el estado calculado y el comentario con fotos.
@@ -522,7 +529,7 @@ Es un componente compartido en Qué reparar, Equipo, Zona y Punto.
 - **Revisar y guardar:** "Guardar inspección" la agrega al historial y recalcula todo.
 - **Imprimir:** sale el formato de campo completo.
 
-**En `main`:** formulario de una sola página, con el encabezado, la tabla de criterios, observaciones generales y, por cada zona, la tabla de puntos, el esquema y las observaciones.
+La primera versión publicada usaba un formulario de una sola página; el asistente lo reemplazó en el rediseño.
 
 ### 8.8 Órdenes de trabajo (`#/ot` y `#/ot/{id}`)
 
@@ -601,9 +608,9 @@ Código: `src/lib/ot.ts` y `src/views/WorkOrders.tsx`.
 
 ## 10. Inteligencia artificial
 
-Código: `src/lib/ai.ts`, `src/components/AIPanel.tsx` y `proxy/`.
+Código: `src/lib/ai.ts`, `src/components/AIPanel.tsx`, el chatbot (`src/lib/chat.ts`, `src/lib/curso.ts`, `src/components/ChatBot.tsx` y `ChatPanel.tsx`) y `proxy/`.
 
-### 10.1 Tres usos
+### 10.1 Tres usos con botón (más el chatbot, sección 10.6)
 
 1. **Informe ejecutivo del equipo.**
    - Contexto que recibe: indicadores, todos los puntos con estado, marcas, pronóstico con fechas y acción; hallazgos; inspecciones con sus marcas; OT; y el historial detallado.
@@ -644,11 +651,36 @@ Los tres usos respondieron con Opus 5.5:
 - **Diagnóstico:** confianza baja, Crítico, no operar.
 - **Foto:** ubica la indicación en el pie de la soldadura de la oreja de levante y mantiene el estado Crítico.
 
+### 10.6 Chatbot "Pregúntale a la IA"
+
+**Para la persona.**
+- Botón flotante abajo a la derecha en todas las pantallas (en celular solo el ícono). Abre un panel lateral de 440 px (pantalla completa en celular).
+- Encabezado con "Nueva conversación", "Más → Copiar conversación" y Cerrar. Con la máquina del tiempo activa, una franja dice "Respondo con los datos al {fecha}. Lo medido después no lo conozco."; si la fecha cambia con la conversación empezada, se agrega un aviso en la conversación.
+- Conversación vacía: 6 preguntas sugeridas ("¿Puede operar hoy el equipo 631-01?", "¿Qué debo reparar primero y por qué?", "¿Qué diferencia hay entre planeación y programación?"…). En un punto o una zona, la primera es "¿Cuándo hay que intervenir {código}?".
+- Respuesta en streaming con el renderizador Markdown propio (no inyecta HTML). Enter envía, Shift + Enter salta de línea, Detener corta la respuesta, Copiar debajo de cada respuesta.
+- Pie fijo: "Generado por IA: verifique cifras antes de actuar. La decisión es del ingeniero responsable." y "Ver la información que se envía" con el último mensaje completo.
+- Si se alcanza el límite del intermediario: "Se alcanzó el límite de consultas de la plataforma (25 cada 10 minutos). Espere unos minutos.", y la pregunta vuelve al cuadro.
+- Accesibilidad: `role="dialog"`, foco al cuadro de texto al abrir, Esc cierra y el foco vuelve al botón, respuesta en curso en una región `aria-live`. El botón no tapa la barra Atrás / Siguiente del asistente de inspección (sube en esa ruta) ni las tarjetas del recorrido de Inicio.
+
+**Qué sabe.** En cada pregunta se arma de nuevo el contexto, así que una inspección recién registrada ya cuenta en la pregunta siguiente:
+1. **Datos de la plataforma:** `unitContext` de cada equipo (el mismo del informe ejecutivo) y, si la pantalla es un punto, `pointContext` (los datos del diagnóstico, sin su instrucción final). Salen de `useAnalysis()`, que ya aplica la máquina del tiempo.
+2. **Pantalla actual:** Inicio, Qué reparar, Equipo, Zona, Punto, etc.
+3. **Material del curso:** `src/lib/curso.ts`, extraído de los 4 PDF de `curso/` con `pdftotext` y ordenado por semana y tema, conservando definiciones, fórmulas y ejemplos (≈ 4.500 palabras).
+4. **Reglas de cálculo:** `REGLAS_PLATAFORMA` en `src/lib/chat.ts`, el resumen de "Cómo se calcula cada cosa" del README, para explicar "¿por qué AP-03 es P1?" con el criterio real.
+
+**Cómo se arma cada consulta.** El intermediario exige **un solo mensaje de usuario** y siempre reemplaza el mensaje de sistema por el suyo. Para no tener que redesplegarlo, `chatPrompt()` arma un solo mensaje con bloques separados por etiquetas: instrucciones del chat → `<reglas_plataforma>` → `<material_curso>` → `<pantalla_actual>` → `<datos_plataforma>` → `<conversacion_previa>` (últimos 10 intercambios) → `<pregunta_nueva>`. Si pasa de 150.000 caracteres se recortan primero los intercambios más viejos, nunca los datos ni la pregunta. Las etiquetas escritas por la persona se neutralizan para que no rompan la estructura. Respuesta de hasta 4.000 tokens (`askClaude` recibió el parámetro opcional `maxTokens`; los otros usos siguen en 16.000). Con los datos reales el mensaje ocupa unos 63.000 caracteres.
+
+**Reglas que no rompe.**
+- Las del mensaje de sistema siguen mandando (el intermediario siempre lo envía). Si hay un punto Crítico, fracturado o posible crítico sin verificar, a "¿puede operar?" responde NO aunque la persona insista.
+- **Solo lectura:** no crea OT, no registra inspecciones, no cambia ajustes ni excluye medidas. Si se le pide, explica cómo hacerlo en la plataforma.
+- **Privacidad:** la conversación vive solo en memoria del componente; no va a IndexedDB, al respaldo JSON ni al Excel. La clave propia nunca se muestra.
+- `proxy/` y `SYSTEM` no cambiaron.
+
 ---
 
 ## 11. Diseño visual
 
-### 11.1 Rama `rediseno-sobrio`: seria, elegante e intuitiva
+### 11.1 Interfaz actual (rediseño): seria, elegante e intuitiva
 
 La persona pidió el rediseño con un sistema de diseño definido, **sin tocar la lógica** (`src/lib/*`, store y `tools/`) y sin hacer push a `main`.
 
@@ -676,14 +708,14 @@ La persona pidió el rediseño con un sistema de diseño definido, **sin tocar l
   - Los puntos críticos y en alerta son más grandes y tienen etiqueta de color. Las coordenadas de los puntos (POS3D) y la interacción no cambiaron.
 - **Interfaz guiada:** pantalla de inicio, guía de una línea por pantalla, botón Ayuda con glosario, palabras técnicas explicadas, hallazgos plegados y textos más cortos (secciones 8.0 a 8.7).
 
-### 11.2 Rama `main`: versión publicada original
+### 11.2 Interfaz original (primera versión publicada, reemplazada por el rediseño)
 
 - **Oscura por defecto**, con una rejilla tenue de plano en el fondo. Barlow para la interfaz y Barlow Condensed para títulos y cifras.
 - Colores: fondo `#0e1317`, acento `#5fa1d6`, Normal `#0ca30c`, Alerta `#fab219` y Crítico `#d03b3b`.
 - Indicadores en una franja dividida; el marcador crítico pulsa.
 - Modelo 3D simplificado con primitivas.
 
-### 11.3 Común a las dos ramas
+### 11.3 Común a las dos versiones
 
 - **El color de estado siempre va con forma:** círculo lleno = Normal, triángulo = Alerta, rombo con "!" = Crítico, círculo hueco = Sin grieta y círculo punteado = N/I.
 - Los esquemas van sobre fondo blanco; en oscuro se invierten con `invert(.88) hue-rotate(180deg)`.
@@ -696,7 +728,7 @@ La persona pidió el rediseño con un sistema de diseño definido, **sin tocar l
 **Stack:**
 - Vite 8, React 18 y TypeScript estricto.
 - SheetJS 0.20.3, instalado desde el CDN oficial porque la versión de npm tiene vulnerabilidades.
-- Three.js, zustand, idb-keyval, @fontsource y el SDK de Anthropic, que se carga bajo demanda. En `rediseno-sobrio` se quitó `@fontsource/barlow-condensed`.
+- Three.js, zustand, idb-keyval, @fontsource y el SDK de Anthropic, que se carga bajo demanda. En el rediseño se quitó `@fontsource/barlow-condensed`.
 - Gráficas en SVG propio.
 - Desarrollo: tsx y Playwright.
 - `vite.config.ts` con `base: './'`.
@@ -727,22 +759,28 @@ Taller-en-enfasis-/
 │   │   ├── quality.ts             runQuality (marcas y exclusiones), ritmo típico
 │   │   ├── analysis.ts            estado, ciclos, ajuste, pronóstico, prioridad, alertas, indicadores, hallazgos, analyze()
 │   │   ├── ot.ts                  createWorkOrder, plantillas, ISO 14224, flujo, closeWO
-│   │   ├── ai.ts                  mensaje de sistema, contextos, askClaude (streaming), mensajes de error
-│   │   └── glossary.ts            (rediseño) glosario de 22 términos para la ayuda
+│   │   ├── ai.ts                  mensaje de sistema, contextos (unitContext, pointContext), askClaude (streaming), errores
+│   │   ├── chat.ts                chatbot: reglas de la plataforma, chatPrompt (un solo mensaje), recorte, sugerencias
+│   │   ├── curso.ts               material del curso (semanas 1 a 5) extraído de los PDF
+│   │   └── glossary.ts            glosario de 22 términos para la ayuda
 │   ├── components/                Timeline, GrowthChart, HeatHistory, Schematic, Scraper3D (+Lazy3D),
 │   │                              Ranking, RiskMatrix, Findings, AIPanel, ui,
-│   │                              Help (rediseño: guía, botón Ayuda, términos),
-│   │                              scraperModel.ts (rediseño: geometría 3D detallada)
-│   └── views/                     Home (rediseño), Fleet, Unit, Zone, Point, History, WorkOrders, InspectionForm, Data
+│   │                              Help (guía, botón Ayuda, términos),
+│   │                              scraperModel.ts (geometría 3D detallada), ScraperStory (recorrido por scroll),
+│   │                              ChatBot (botón flotante) y ChatPanel (panel del chat, cargado aparte)
+│   └── views/                     Home, Fleet, Unit, Zone, Point, History, WorkOrders, InspectionForm, Data
 ├── tools/
 │   ├── probar-motor.ts            37 pruebas de aceptación (sección 4)
-│   ├── flujo.ts                   prueba en navegador: OT completa, máquina del tiempo, inspección, restaurar
-│   └── capturas.ts                capturas de todas las rutas en oscuro, claro y celular
+│   ├── probar-chat.ts             24 pruebas sin red del mensaje del chatbot
+│   ├── flujo.ts                   prueba en navegador: OT, máquina del tiempo, asistente de inspección, restaurar, chatbot
+│   ├── capturas.ts                capturas de todas las rutas, del recorrido de Inicio y del chatbot
+│   ├── ia-falsa.ts                respuesta SSE falsa de la IA para las pruebas (no gasta consultas)
+│   └── navegador.ts               abre Chromium (usa uno preinstalado si existe)
 ├── proxy/                         intermediario de IA (proyecto Vercel aparte)
 │   ├── api/v1/messages.ts         función: valida y reenvía a Anthropic con la clave secreta
 │   ├── lib/system.ts              copia del mensaje de sistema
 │   ├── vercel.json, package.json, README.md
-└── .github/workflows/deploy.yml   GitHub Actions: pruebas del motor → build → GitHub Pages
+└── .github/workflows/deploy.yml   GitHub Actions: pruebas del motor y del chat → build → GitHub Pages
 ```
 
 ---
@@ -753,29 +791,26 @@ Taller-en-enfasis-/
 |---|---|---|
 | Aceptación del motor (sección 3 del encargo, más seguridad y "sin mirar al futuro") | `npx tsx tools/probar-motor.ts` | **37 correctas, 0 fallas** |
 | Tabla y hallazgos a cualquier corte | `npx tsx tools/probar-motor.ts 2024-04-30` | Usada para revisar |
-| Flujo en el navegador | `npx tsx tools/flujo.ts [url]` | `main`: **14 de 14** en local y en el sitio publicado. `rediseno-sobrio`: ver la nota abajo. |
-| Capturas | `npx tsx tools/capturas.ts [url] [rutas] [carpeta]` | `main`: 9 pantallas × 3 variantes. `rediseno-sobrio`: incluye Inicio (`#/`) y Qué reparar (`#/flota`). Sin errores en consola ni desplazamiento horizontal. |
-| Contraste del rediseño | Cálculo WCAG de los tokens | Todos los pares de texto ≥ 4,5:1 en claro y oscuro |
+| Mensaje del chatbot, sin red | `npx tsx tools/probar-chat.ts` | **24 correctas, 0 fallas**: AP-03 Crítico con fractura, curso completo, reglas, orden de los bloques, corte 2024-04-30 (AP-03 en Alerta, 380 mm, P1, sin lo medido después), recorte del historial con la pregunta y los datos intactos, etiquetas neutralizadas y sugerencias |
+| Flujo en el navegador | `npx tsx tools/flujo.ts [url]` | **31 de 31** en local (`vite preview`), con la IA interceptada |
+| Capturas | `npx tsx tools/capturas.ts [url] [rutas] [carpeta]` | 10 rutas × 3 variantes (oscuro y claro a 1400 px, celular a 390 px), más el recorrido de Inicio en 3 posiciones y el chatbot vacío y con respuesta. Sin errores en consola, sin desplazamiento horizontal y sin el botón del chatbot sobre las tarjetas o el riel del recorrido |
+| Contraste del rediseño | Cálculo WCAG de los tokens | Todos los pares de texto ≥ 4,5:1 en claro y oscuro; el chatbot usa solo esos tokens |
 | Escenarios de borde del revisor (8) | Script del revisor | Todos correctos después de las correcciones |
-| Tipos | `npx tsc --noEmit -p .` | Sin errores |
-| Build bajo una subruta como en Pages | `npm run build` | Cargan el Excel, las imágenes y las fuentes |
-| IA en el sitio publicado, sin clave | Prueba en el navegador | Informe, diagnóstico y foto responden |
+| Tipos | `npx tsc -b` | Sin errores |
+| Build bajo una subruta como en Pages | `npm run build` | Cargan el Excel, las imágenes y las fuentes; el panel del chat va en su propio archivo (≈ 46 kB) |
+| IA en el sitio publicado, sin clave | Prueba en el navegador | Informe, diagnóstico y foto responden. El chatbot real queda por probar en el sitio publicado (sección 19): desde la nube de desarrollo no había red hacia el intermediario |
 | Intermediario | `curl` | Responde desde la página; rechaza otros sitios (403) y modelos no permitidos |
 
-**Nota sobre `tools/flujo.ts` en `rediseno-sobrio`.**
-- Pasan las 10 primeras verificaciones: OT completa y máquina del tiempo al 2024-04-30.
-- Después el script se detiene porque busca el botón con el texto anterior, "Volver al presente", que ahora dice "Volver a hoy".
-- Con esa etiqueta corregida en una copia temporal, la prueba avanza hasta la inspección. Ahí falla porque escribe todos los campos en una sola página, y el formulario ahora es un asistente paso a paso.
-- **Falta actualizar el script.** El asistente de inspección y "Restaurar datos originales" no tienen todavía prueba automática en esta rama. La lógica no cambió: 37 de 37 en el motor.
-
-El flujo (en `main`) cubre:
+El flujo cubre:
 1. Crear la OT de AP-03, que queda Correctivo inmediato y BRD.
 2. Avanzarla por todos los estados y cerrarla con reparación: AP-03 queda Sin grieta, con 2 reparaciones, y la OT en Cerrada.
-3. La máquina del tiempo al 2024-04-30: Alerta, P1, Danger en 325 h (115 – 551) y Crear OT oculto.
-4. Volver al presente.
-5. Una inspección de prueba (AP-02 = 120 mm, Normal).
-6. Restaurar los datos originales.
-7. Cero errores en consola.
+3. La máquina del tiempo al 2024-04-30: Alerta, P1, Danger en 325 h (115 – 551) y Crear OT oculto. Luego "Volver a hoy".
+4. El asistente de inspección paso a paso (Datos → Caja → Eyector → Apron → Revisar y guardar), con "Medí", "No pude revisarlo" (EY-01) y "Se reparó" (BW-02); AP-02 = 120 mm queda Normal.
+5. Restaurar los datos originales: AP-03 vuelve a Crítico y no quedan OT.
+6. El chatbot: foco al abrir, sugerencias, respuesta en streaming, **un solo mensaje `user` por consulta**, Esc cierra y devuelve el foco, la conversación se conserva al reabrir, Detener devuelve la pregunta al cuadro, el error 429 se explica, Nueva conversación y el botón sin tapar la barra Atrás / Siguiente.
+7. Cero errores en consola (salvo el aviso del 429 simulado).
+
+Las pruebas de navegador interceptan `integridad-estructural-ia.vercel.app` con una respuesta SSE falsa en el formato de la API de Messages (`tools/ia-falsa.ts`): no gastan consultas.
 
 ---
 
@@ -785,9 +820,10 @@ El flujo (en `main`) cubre:
 
 - El workflow `.github/workflows/deploy.yml` corre en cada push a `main`:
   1. `npm ci`.
-  2. **`npx tsx tools/probar-motor.ts`**: si falla, no se publica.
+  2. **`npx tsx tools/probar-motor.ts`** y **`npx tsx tools/probar-chat.ts`**: si alguna falla, no se publica.
   3. `npm run build`.
   4. Sube `dist` a Pages.
+- Acciones: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/upload-pages-artifact@v5` y `actions/deploy-pages@v5` (todas en Node 24; las v4 avisaban que Node 20 está en desuso).
 - Pages se activó con `gh api -X POST repos/jdvc2409/Taller-en-enfasis-/pages -f build_type=workflow`.
 - `gh` está instalado como binario en `~/.local/bin`, con sesión iniciada como jdvc2409.
 
@@ -844,24 +880,27 @@ npx playwright install chromium     # una vez, para flujo.ts y capturas.ts
 - Abrir https://jdvc2409.github.io/Taller-en-enfasis-/. Si en el ensayo se registraron inspecciones u OT de prueba: **Datos → Restaurar datos originales**.
 - Opcional: probar la IA con Datos → IA → "Probar conexión".
 - Tener a mano el enlace directo de la máquina del tiempo: `https://jdvc2409.github.io/Taller-en-enfasis-/#/punto/631-01%7CAP-03?corte=2024-04-30`
-- **Decidir qué versión presentar.** El link publicado (`main`) tiene la interfaz oscura original. Para presentar el rediseño hay que mezclar `rediseno-sobrio` en `main` antes del 10 de octubre, o presentarlo en local con `npm run dev`. La IA funciona en los dos casos, porque el intermediario acepta `localhost:5173`.
-- Si se presenta el rediseño, el recorrido puede empezar en **Inicio**: frase de estado, punto más urgente y 3D. Luego "Qué reparar" ocupa el lugar de "Flota" en los pasos siguientes. La máquina del tiempo se abre con "Ver el estado en otra fecha" y se cierra con "Volver a hoy".
+- El link publicado ya tiene el rediseño. Mezclar el PR de `version-final` antes del 10 de octubre para tener el chatbot, esperar el check verde en Actions y abrir el sitio con Ctrl + Shift + R.
+- El recorrido empieza en **Inicio**: frase de estado, punto más urgente y el recorrido por scroll de la traílla. La máquina del tiempo se abre con "Ver el estado en otra fecha" y se cierra con "Volver a hoy".
+- Si la presentación es sin internet o falla el intermediario, el chatbot muestra el error; el resto de la plataforma no depende de la IA.
 
 ### Recorrido sugerido (unos 10 minutos)
 
 1. **Problema** (30 s): 300 registros en 3 años, con datos de campo que tienen errores. Hay que llegar a decisiones.
-2. **Flota:** "Qué atender primero" muestra AP-03 en P1, Crítico, "Reparar antes de continuar operando". Señalar los indicadores (3.350 h con un punto crítico confirmado) y la matriz de riesgo.
+2. **Inicio y Qué reparar:** bajar por el recorrido de Inicio (la traílla se desarma y muestra cada zona) y pasar a Qué reparar: "Qué atender primero" muestra AP-03 en P1, Crítico, "Reparar antes de continuar operando". Señalar los indicadores (3.350 h con un punto crítico confirmado) y la matriz de riesgo.
 3. **Equipo:** el mapa de calor muestra toda la historia de un vistazo (reparaciones, N/I, intervalos en ámbar). El modelo 3D muestra dónde está cada punto. Leer dos o tres hallazgos: el intervalo largo con un punto crítico ("debió acortarse, no alargarse"), los reincidentes y la campaña de reparación seguida de crecimientos atípicos.
 4. **Punto AP-03:** la gráfica con Caution y Danger, los episodios sobre Danger, la fractura y la foto.
 5. **Máquina del tiempo (pieza central):**
    - Arrastrar al 30 abr 2024, o abrir el enlace directo.
    - AP-03 tenía 380 mm, en Alerta, y la plataforma ya decía **P1: "reparar ya o restringir", Danger en 325 h (115 – 551)**.
    - En gris aparece lo que pasó: 685 h después midió 410 mm, sobre Danger, y siguió creciendo hasta ser pasante. **"La plataforma lo habría anticipado."**
+   - Con la fecha aún activa, abrir **Pregúntale a la IA** y preguntar "Explícame el estado de AP-03": responde con los datos de esa fecha (Alerta, P1). Volver a hoy.
 6. **Decisión → acción:** "Crear OT" genera el documento ISO 14224, con las operaciones de seguridad y el costo. Recorrer el kanban, es decir, el ciclo de la OT del curso.
 7. **IA:**
    - "Informe ejecutivo con IA": responde que el equipo no puede operar y da decisiones con plazos.
    - Mostrar "Ver la información que se envía" como transparencia.
    - Opcional: "Analizar foto" de AP-03.
+   - **Chatbot:** "¿Puede operar hoy el equipo?" (responde que NO, por AP-03), una pregunta de teoría del curso ("¿Qué diferencia hay entre planeación y programación?", citando la semana 3 y 4) y una de seguimiento ("¿y cuánto backlog hay ahora?") para mostrar que recuerda la conversación. Abrir "Ver la información que se envía" para mostrar que lleva los datos y el curso.
 8. **Calidad de datos:** en Datos → Revisión de calidad, el atípico de BW-03 excluido, las bajas sin reparación y las inspecciones parciales. "Los datos vienen de campo."
 9. **Cierre:** la plataforma no solo muestra datos; dice qué hacer, cuándo y por qué, con el criterio del formato y el vocabulario del curso.
 
@@ -872,6 +911,8 @@ npx playwright install chromium     # una vez, para flujo.ts y capturas.ts
 - **¿Por qué la próxima inspección es la mitad?** Es la regla de tolerancia al daño: da dos oportunidades de detectar la grieta antes del límite.
 - **MTBF:** el encargo pide horas / reparaciones ≈ 716 h. El curso define el MTBF con fallas, y con 3 fallas da ≈ 5.726 h. Se muestran ambos.
 - **¿La IA puede equivocarse?** Sí. Por eso tiene reglas de seguridad, el aviso "verifique cifras" y la transparencia de lo que se envía. La decisión es del ingeniero.
+- **¿El chatbot puede cambiar algo?** No. Solo lee el análisis; para crear una OT o registrar una inspección explica dónde hacerlo. Tampoco guarda la conversación.
+- **¿De dónde saca la teoría?** Del material del curso, extraído de las presentaciones de las semanas 1 a 5, que va en cada consulta. Si algo no está en el curso, lo dice.
 
 ---
 
@@ -882,7 +923,8 @@ npx playwright install chromium     # una vez, para flujo.ts y capturas.ts
 - **Cambiar el Excel incluido para todos:** reemplazar `public/data/631G_historial_grietas.xlsx`, hacer commit y push. Los visitantes que ya entraron ven su copia guardada hasta usar "Restaurar datos originales".
 - **Cambiar el mensaje de sistema de la IA:** editar `src/lib/ai.ts` **y** copiarlo a `proxy/lib/system.ts`. Luego `cd proxy && npx vercel deploy --prod --yes` y push.
 - **Cambiar la clave:** `cd proxy && npx vercel env rm ANTHROPIC_API_KEY production` y después `npx vercel env add ANTHROPIC_API_KEY production --sensitive`, con un redespliegue.
-- **Volver a probar:** `npx tsx tools/probar-motor.ts`, `npx tsx tools/flujo.ts https://jdvc2409.github.io/Taller-en-enfasis-/` y `npx tsx tools/capturas.ts`.
+- **Cambiar el material del curso del chatbot:** editar `src/lib/curso.ts` (texto plano). No requiere tocar el intermediario.
+- **Volver a probar:** `npx tsx tools/probar-motor.ts`, `npx tsx tools/probar-chat.ts`, `npx tsx tools/flujo.ts https://jdvc2409.github.io/Taller-en-enfasis-/` y `npx tsx tools/capturas.ts`.
 - **Respaldo:** Datos → Respaldo JSON (no incluye la clave).
 
 ---
@@ -911,7 +953,18 @@ npx playwright install chromium     # una vez, para flujo.ts y capturas.ts
 | 6135ffe | Interfaz guiada: pantalla de inicio, guías por pantalla y glosario |
 | 80ba3e0 | Inspección paso a paso, 3D visible y menos texto |
 | b1cca05 | Modelo 3D detallado de la traílla |
-| (siguiente) | Actualización de la documentación para la rama |
+| ba5738b | Documentación actualizada: rediseño, interfaz guiada, asistente de inspección, 3D detallado y estado de ramas |
+| **Rama `animacion-scroll`** (PR #1, mezclada en `main` en d7df845) | |
+| 304b578 | Modelo 3D fiel a la 631G y página animada |
+| 6554558 | Inicio: recorrido por scroll con vista explosionada de la 631G |
+| **Rama `version-final`** (PR a `main`) | |
+| 5fb6591 | Material del curso para el chatbot (semanas 1 a 5) |
+| 92238bd | Lógica del chatbot y pruebas sin red |
+| 0d02266 | Chatbot "Pregúntale a la IA" en todas las pantallas |
+| b4c787b | Chatbot: encabezado compacto en celular y mención en Ayuda |
+| 76b0c1d | Pruebas de navegador al día y con el chatbot |
+| 46c3565 | GitHub Actions: acciones en Node 24 y prueba del chat antes del build |
+| a8ba71d | Documentación de la versión final |
 
 Resumen del proceso:
 1. Se revisaron el Excel y el Word contra el encargo.
@@ -922,19 +975,29 @@ Resumen del proceso:
 6. Se publicó en Pages.
 7. Se probó la IA real.
 8. Se integró el intermediario para que la IA funcione para cualquiera.
-9. Se rediseñó la interfaz en la rama `rediseno-sobrio`: tema claro sobrio, interfaz guiada, asistente de inspección y 3D detallado, sin tocar la lógica.
+9. Se rediseñó la interfaz en la rama `rediseno-sobrio`: tema claro sobrio, interfaz guiada, asistente de inspección y 3D detallado, sin tocar la lógica. Se mezcló en `main`.
+10. Se agregó la animación por scroll de Inicio (PR #1).
+11. Versión final (rama `version-final`): chatbot "Pregúntale a la IA" con los datos y el material del curso, pruebas de navegador al día, Actions actualizadas y esta documentación.
 
 ---
 
 ## 19. Pendientes y recomendaciones
 
-- [ ] **Decidir si se publica el rediseño:** revisar la rama `rediseno-sobrio` en local y, si se aprueba, mezclarla en `main` antes del 10 de octubre. El push a `main` publica.
-- [ ] **Actualizar `tools/flujo.ts` para la rama `rediseno-sobrio`:** cambiar el botón "Volver al presente" por "Volver a hoy" y recorrer el asistente de inspección paso por paso.
-- [ ] **Revocar la clave de Anthropic después del 10 de octubre de 2026**, o reemplazarla (sección 15).
+- [x] Publicar el rediseño: `main` ya lo tiene.
+- [x] Actualizar `tools/flujo.ts`: "Volver a hoy", asistente de inspección paso a paso y chatbot.
+- [x] Actualizar las acciones de GitHub Actions (Node 24).
+- [x] Agregar el chatbot "Pregúntale a la IA".
+- [ ] **Revisar y mezclar el PR de `version-final` en `main`**, y después de mezclar:
+  1. Esperar el check verde en Actions y abrir el sitio con Ctrl + Shift + R.
+  2. Abrir "Pregúntale a la IA" y preguntar "¿Puede operar hoy el equipo?": debe responder que no, por AP-03.
+  3. Preguntar algo del curso y una pregunta de seguimiento.
+  4. Activar la máquina del tiempo al 30 abr 2024 y preguntar por AP-03: debe responder con el estado de esa fecha (Alerta, P1).
+  5. Datos → Restaurar datos originales antes de exponer.
 - [ ] Ensayar la exposición con el recorrido de la sección 16 y usar "Restaurar datos originales" antes de presentar.
-- [ ] Opcional: bajar el costo de la IA usando Sonnet 5 como modelo por defecto (Datos → IA, o `DEFAULT_SETTINGS.aiModel` en `catalog.ts`).
+- [ ] **Revocar o rotar la clave de Anthropic después del 10 de octubre de 2026** (sección 15).
 - [ ] Opcional: limitar el gasto mensual desde la consola de Anthropic.
-- [ ] Aviso menor de GitHub Actions: las acciones v4 usan Node 20, que está en desuso. Hoy funcionan; más adelante conviene actualizar a las versiones nuevas de `actions/checkout`, `setup-node` y `upload-pages-artifact`.
+- [ ] Opcional: borrar las ramas `rediseno-sobrio` y `animacion-scroll`, ya mezcladas.
+- [ ] Opcional: bajar el costo de la IA usando Sonnet 5 como modelo por defecto (Datos → IA, o `DEFAULT_SETTINGS.aiModel` en `catalog.ts`).
 - **Advertencias de uso:**
   - Los tiempos y materiales de la OT son una **plantilla de referencia, no un procedimiento aprobado**.
   - El modelo 3D es una representación simplificada, también en la versión detallada: no es un modelo CAD del fabricante.

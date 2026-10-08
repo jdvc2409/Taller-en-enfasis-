@@ -4,17 +4,15 @@ Plataforma web para pasar de la visión global de la flota al historial de una g
 
 **Link:** https://jdvc2409.github.io/Taller-en-enfasis-/
 
-> **Versión de la interfaz.** Este README describe la rama `rediseno-sobrio`: tema claro, pantalla de inicio, guías y asistente de inspección. El link publicado sale de `main` y mantiene la interfaz anterior (tema oscuro, sin pantalla de inicio) hasta que la rama se mezcle. Los cálculos son los mismos en las dos versiones.
-
 La plataforma carga sola el historial real (`631G_historial_grietas.xlsx`: equipo 631-01, 25 inspecciones, 12 puntos, 300 registros). No se inventaron equipos ni datos: funciona para N equipos y se muestra con los datos reales.
 
 ## Cómo usarla
 
-La navegación tiene cuatro niveles: Flota > Equipo > Zona > Punto. Barra superior: Inicio, Qué reparar, Historial, Órdenes de trabajo, Registrar inspección, Datos, **Ayuda** y el tema claro u oscuro.
+La navegación tiene cuatro niveles: Flota > Equipo > Zona > Punto. Barra superior: Inicio, Qué reparar, Historial, Órdenes de trabajo, Registrar inspección, Datos, **Ayuda** y el tema claro u oscuro. En todas las pantallas, abajo a la derecha, está el botón **Pregúntale a la IA** (el chatbot).
 
 | Pantalla | Para qué sirve |
 |---|---|
-| **Inicio** (`#/`) | El estado de la flota en una frase, el punto más urgente con su acción (abrirlo o crear su OT), cuatro tareas numeradas, la leyenda de colores y el modelo 3D de la traílla. |
+| **Inicio** (`#/`) | El estado de la flota en una frase, el punto más urgente con su acción (abrirlo o crear su OT), cuatro tareas numeradas, la leyenda de colores y el **recorrido por scroll**: al bajar, la traílla 3D se desarma en Caja, Apron y Eyector, la cámara recorre cada zona con una tarjeta de sus puntos y al final se rearma. |
 | **Qué reparar** (`#/flota`) | "Qué atender primero" (puntos con grieta ordenados por prioridad, con los reincidentes plegados), 4 indicadores, "Dónde están las grietas" en 3D, matriz de riesgo 5×5 y hallazgos. |
 | **Equipo** | Modelo 3D arriba, 4 indicadores (Crítico, Alerta, MTBF estructural e inspecciones a tiempo; el detalle completo, con MTBF de falla, OT abiertas y backlog, va en "Más indicadores"), historia completa en mapa de calor (12 puntos × 25 inspecciones), hallazgos e informe ejecutivo con IA. |
 | **Zona** | Esquema real con los puntos anclados; modo "Mover puntos"; criticidad de la zona; minigráficas. |
@@ -24,6 +22,7 @@ La navegación tiene cuatro niveles: Flota > Equipo > Zona > Punto. Barra superi
 | **Registrar inspección** | Asistente paso a paso: Datos → Caja → Eyector → Apron → Revisar y guardar. Cada punto es una tarjeta con tres opciones ("Medí", "No pude revisarlo", "Se reparó") y la barra Atrás / Siguiente queda fija. Al imprimir sale el formato de campo completo. |
 | **Historial** | Filtros por zona, punto, estado y fecha. Exportar a Excel con el mismo formato de entrada (Léame, Historial y Puntos). |
 | **Datos** | Carga de Excel (agregar o reemplazar), revisión de calidad, criticidades, parámetros, límites, IA, imágenes, respaldo JSON y "Restaurar datos originales". |
+| **Pregúntale a la IA** (todas las pantallas) | Chatbot que responde sobre el estado de la traílla con los datos reales de la plataforma (respeta la fecha elegida en la máquina del tiempo) y preguntas de gestión del mantenimiento con el material del curso. Solo lee: no crea OT ni cambia datos. Ver "Uso de inteligencia artificial". |
 
 **Ayuda integrada.**
 - Arriba de cada pantalla hay una guía de una línea que dice para qué sirve; se puede cerrar.
@@ -41,14 +40,12 @@ npm install
 npm run dev                      # http://localhost:5173
 npx tsx tools/probar-motor.ts    # pruebas de aceptación del motor (37 verificaciones)
 npx tsx tools/probar-motor.ts 2024-04-30   # tabla de puntos y hallazgos a cualquier fecha de corte
-npx tsx tools/flujo.ts           # flujo en el navegador (requiere npx playwright install chromium); ver la nota abajo
-npx tsx tools/capturas.ts        # capturas de todas las pantallas en oscuro, claro y celular
+npx tsx tools/probar-chat.ts     # pruebas sin red del mensaje que arma el chatbot (24 verificaciones)
+npx tsx tools/flujo.ts           # flujo en el navegador: OT, máquina del tiempo, asistente de inspección, restaurar y chatbot
+npx tsx tools/capturas.ts        # capturas de todas las pantallas, del recorrido de Inicio y del chatbot
 ```
 
-> **Nota sobre `tools/flujo.ts` en la rama `rediseno-sobrio`.** La parte de OT y la de la máquina del tiempo pasan. El script se detiene después porque busca el botón con el texto anterior ("Volver al presente", que ahora dice "Volver a hoy") y escribe en el formulario de una sola página, que ahora es un asistente. Falta actualizar el script; la lógica no cambió y el motor sigue en 37 de 37.
-
-```bash
-```
+`flujo.ts` y `capturas.ts` usan Playwright (una vez: `npx playwright install chromium`) y aceptan la URL como primer argumento. Interceptan la IA con una respuesta falsa, así que no gastan consultas.
 
 ## Cómo se calcula cada cosa
 
@@ -146,7 +143,14 @@ El mensaje de sistema obliga a respetar la seguridad:
 - Tratar como real una medida dudosa que indique peor condición.
 - No presentar procedimientos como aprobados.
 
-Cada panel muestra "Ver la información que se envía". **Cualquier persona que abra el link puede usar la IA sin pegar una clave.** Las consultas pasan por un intermediario en Vercel (`proxy/`, desplegado en `https://integridad-estructural-ia.vercel.app`) que guarda la clave de Anthropic como secreto del servidor. **La clave nunca está en la página, en el código ni en el repositorio.** El intermediario:
+**Chatbot "Pregúntale a la IA"** (`src/components/ChatBot.tsx`, `ChatPanel.tsx` y `src/lib/chat.ts`):
+- **Qué sabe:** en cada pregunta arma de nuevo el contexto con el estado actual: el mismo contexto del informe ejecutivo para cada equipo (indicadores, puntos, pronósticos, hallazgos, inspecciones, OT e historial), el detalle del punto si la pantalla es un punto, las reglas de cálculo de esta página y el **material del curso** (semanas 1 a 5, extraído de los PDF a `src/lib/curso.ts`). Si la máquina del tiempo está activa, responde con los datos de esa fecha y lo avisa.
+- **Cómo pregunta:** el intermediario acepta un solo mensaje de usuario y siempre pone su propio mensaje de sistema. Por eso cada consulta es **un solo mensaje** con, en orden: las instrucciones del chat, las reglas de la plataforma, el curso, la pantalla actual, los datos, la conversación previa (últimos 10 intercambios, recortando primero los más viejos) y la pregunta nueva. Así funciona en varios turnos sin cambiar el intermediario.
+- **Seguridad:** valen las mismas reglas del mensaje de sistema; si hay un punto Crítico, fracturado o posible crítico sin verificar, a "¿puede operar?" responde NO aunque se insista. El texto de la persona no puede cambiar las instrucciones: las etiquetas que separan los bloques se neutralizan.
+- **Solo lectura:** no crea OT, no registra inspecciones ni cambia datos; explica cómo hacerlo en la plataforma. La conversación vive solo en memoria: no va a IndexedDB, al respaldo ni al Excel.
+- **Uso:** sugerencias según la pantalla, Enter envía y Shift + Enter salta de línea, Detener, Nueva conversación, Copiar por respuesta y Copiar conversación. Respuestas de hasta 4.000 tokens.
+
+Cada panel, y el chatbot, muestra "Ver la información que se envía". **Cualquier persona que abra el link puede usar la IA sin pegar una clave.** Las consultas pasan por un intermediario en Vercel (`proxy/`, desplegado en `https://integridad-estructural-ia.vercel.app`) que guarda la clave de Anthropic como secreto del servidor. **La clave nunca está en la página, en el código ni en el repositorio.** El intermediario:
 - Solo acepta consultas desde la página publicada.
 - Solo permite los modelos de la app y una pregunta por consulta.
 - Usa siempre el mensaje de sistema de la plataforma.
@@ -164,7 +168,8 @@ Opcionalmente se puede usar una clave propia en Datos → IA, que queda solo en 
 
 Vite, React 18 y TypeScript estricto. SheetJS para leer y escribir Excel, Three.js para el 3D (geometría detallada en `src/components/scraperModel.ts`, con materiales PBR y aristas tipo CAD), zustand para el estado, idb-keyval para guardar en IndexedDB y la tipografía Barlow empaquetada con @fontsource. Las gráficas son SVG propio.
 
-**Diseño (rama `rediseno-sobrio`).**
+**Diseño.**
 - Tema claro por defecto y oscuro opcional, con tokens de color en `src/styles.css`. Todos los pares de texto tienen contraste ≥ 4,5:1.
 - Sin cuadrícula de fondo ni animaciones decorativas, una sola familia tipográfica y paneles con borde de 1 px.
+- **Recorrido por scroll de Inicio** (`src/components/ScraperStory.tsx`, cargado aparte): una sección de 560 vh con un escenario fijo. Solo lee el análisis, solo dibuja cuando está en pantalla y, con `prefers-reduced-motion`, muestra la traílla desarmada y las tarjetas en orden, sin movimiento.
 - Cada estado se muestra con color, forma e ícono. Se despliega en GitHub Pages con GitHub Actions; las pruebas del motor corren antes de cada build.
