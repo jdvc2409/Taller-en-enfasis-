@@ -163,6 +163,13 @@ export function HelpButton() {
                 </dl>
               </div>
               <div>
+                <h3 style={{ marginBottom: 8 }}>¿Tienes una pregunta?</h3>
+                <p className="small" style={{ margin: 0 }}>
+                  Usa <b>Pregúntale a la IA</b>, abajo a la derecha en cualquier pantalla. Conoce el historial del equipo y el material del curso, y
+                  solo lee: no cambia datos ni crea órdenes de trabajo.
+                </p>
+              </div>
+              <div>
                 <h3 style={{ marginBottom: 8 }}>Palabras que vas a ver</h3>
                 <input type="search" placeholder="Buscar una palabra…" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: '100%', marginBottom: 8 }} aria-label="Buscar en el glosario" />
                 <dl className="gloss">

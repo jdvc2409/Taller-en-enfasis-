@@ -183,9 +183,9 @@ export default function ChatPanel({ open, onClose, route }: { open: boolean; onC
           {canAsk && <div className="tiny muted">{modelName}{apiKey ? ' · clave propia' : ''}</div>}
         </div>
         <div className="row chat-actions">
-          <button className="btn sm" onClick={reset} disabled={!started && !input}>
+          <button className="btn sm" onClick={reset} disabled={!started && !input} aria-label="Nueva conversación">
             <Icon name="plus" size={14} />
-            Nueva conversación
+            Nueva<span className="chat-largo"> conversación</span>
           </button>
           <details className="chat-menu">
             <summary className="btn sm ghost" aria-label="Más opciones">

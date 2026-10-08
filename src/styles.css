@@ -2520,6 +2520,9 @@ details.finding {
   .chat-head {
     padding-left: 16px;
   }
+  .chat-largo {
+    display: none;
+  }
   .chat-list,
   .chat-form,
   .chat-foot {
